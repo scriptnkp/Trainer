@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Trainer App Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style> 
+        body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        div:where(.swal2-container) { font-family: 'Kanit', sans-serif; } 
+        .touch-action-manipulation { touch-action: manipulation; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .ui-card { transition: all 0.2s ease-in-out; }
+        .ui-card:hover { transform: translateY(-2px); }
+        
+        #loadingOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px);
+            z-index: 9999; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+        }
+    </style>
+</head>
+<body class="relative min-h-screen pb-10">
+
+    <div id="loadingOverlay">
+        <div class="flex flex-col items-center mx-auto text-indigo-600">
+            <i class="fa-solid fa-circle-notch fa-spin text-5xl mb-4"></i>
+            <h2 class="text-xl font-black tracking-widest">กำลังซิงค์ข้อมูล...</h2>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto md:mt-6 md:shadow-2xl md:rounded-[2.5rem] bg-white overflow-hidden border border-slate-100 min-h-screen">
+        
+        <div id="app-header" class="sticky top-0 z-50 bg-white/80 backdrop-blur-lg px-5 py-4 flex justify-between items-center border-b border-slate-100 shadow-sm">
+            <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-500 flex items-center gap-2 cursor-pointer" onclick="showHomeView()">
+                <i class="fa-solid fa-bolt text-indigo-500"></i> TRAINER PRO
+            </h1>
+            <div class="flex gap-2">
+                <button onclick="showDonationPopup()" class="w-10 h-10 rounded-full bg-amber-50 text-amber-500 hover:bg-amber-100 flex items-center justify-center transition shadow-sm touch-action-manipulation" title="สนับสนุนค่าน้ำชา">
+                    <i class="fa-solid fa-mug-hot"></i>
+                </button>
+                <button onclick="manageDataSync()" class="w-10 h-10 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center transition shadow-sm touch-action-manipulation" title="ตั้งค่าระบบ">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+                <button onclick="showTimerView()" class="px-4 h-10 rounded-full bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 flex items-center gap-2 transition shadow-md touch-action-manipulation">
+                    <i class="fa-solid fa-stopwatch"></i> <span class="hidden sm:inline">จับเวลา</span>
+                </button>
+                <button onclick="resetForm(); showAddClientView()" class="px-4 h-10 rounded-full bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 flex items-center gap-2 transition shadow-md touch-action-manipulation">
+                    <i class="fa-solid fa-plus"></i> <span>เพิ่มลูกเทรน</span>
+                </button>
+            </div>
+        </div>
+
+        <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
+
+        <!-- VIEW: HOME -->
+        <div id="view-home" class="block p-4 md:p-6">
+            
+            <div class="bg-slate-900 text-white p-5 md:p-6 rounded-[2rem] shadow-xl mb-6 relative overflow-hidden border border-slate-800">
+                <div class="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500 rounded-full filter blur-3xl opacity-40"></div>
+                <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-blue-500 rounded-full filter blur-3xl opacity-40"></div>
+                
+                <div class="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="bg-amber-500/20 text-amber-400 text-[10px] px-2 py-1 rounded-full font-bold border border-amber-500/30"><i class="fa-solid fa-cloud mr-1"></i> Cloud Database</span>
+                            <h2 id="dashTitle" class="text-lg md:text-xl font-black tracking-wide text-white">TEAM SUCCESS</h2>
+                        </div>
+                        <p id="dashSubtitle" class="text-xs text-slate-400">เปลี่ยนหุ่นพังให้เป็นหุ่นปัง! สถิติรวมใช้เปิดใจลูกค้าใหม่เพื่อปิดการขาย</p>
+                    </div>
+                    <select id="dashboardFilter" onchange="calculateTrainerGlobalPortfolio(this.value)" class="bg-slate-800 border border-slate-700 text-white text-xs md:text-sm px-4 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-sm cursor-pointer w-full lg:w-auto font-medium">
+                        <option value="all">🌍 ภาพรวมทั้งทีม (Team)</option>
+                    </select>
+                </div>
+                
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 relative z-10">
+                    <div class="bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/10"><p id="lblBox1" class="text-[10px] text-indigo-300 font-bold uppercase mb-1">ลูกเทรนในดูแล</p><p id="globalTotalClients" class="text-2xl font-black text-white">0 คน</p></div>
+                    <div class="bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/10"><p id="lblBox2" class="text-[10px] text-indigo-300 font-bold uppercase mb-1">ชั่วโมงสอนสะสม</p><p id="globalTotalSessions" class="text-2xl font-black text-white">0 คลาส</p></div>
+                    <div class="bg-gradient-to-br from-indigo-500 to-blue-600 p-4 rounded-2xl border border-indigo-400/30 shadow-lg"><p id="lblBox3" class="text-[10px] text-indigo-100 font-bold uppercase mb-1">ไขมันเบิร์นรวม</p><p id="globalWeightLoss" class="text-2xl font-black text-white">0.0 กก.</p></div>
+                    <div class="bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/10"><p id="lblBox4" class="text-[10px] text-indigo-300 font-bold uppercase mb-1">วินัยการซ้อม</p><p id="globalConsistencyPct" class="text-2xl font-black text-emerald-400">0%</p></div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-stretch relative z-10">
+                    <div class="md:col-span-3 bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/10 flex flex-col items-center justify-center min-h-[220px]">
+                        <p id="lblRadar" class="text-[10px] md:text-xs text-indigo-300 font-bold uppercase tracking-wider mb-2 w-full text-left">📊 รัศมีพัฒนาการรอบด้านของนักเรียนในทีม</p>
+                        <div style="width: 100%; max-width: 250px; height: 180px; position: relative;"><canvas id="globalExpertiseChart"></canvas></div>
+                    </div>
+                    <div class="md:col-span-2 flex flex-col gap-3 justify-between">
+                        <div class="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-amber-500/30 shadow flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 text-lg"><i class="fa-solid fa-trophy"></i></div>
+                            <div><p id="lblHofWeight" class="text-[10px] text-amber-200 font-bold uppercase tracking-wider">สถิติน้ำหนักลดมากสุด</p><p id="hofWeightLoss" class="text-lg font-black text-white">0.0 กก.</p></div>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-purple-500/30 shadow flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 text-lg"><i class="fa-solid fa-dumbbell"></i></div>
+                            <div><p id="lblHofStrength" class="text-[10px] text-purple-200 font-bold uppercase tracking-wider">แรงยกหนักสุด (PR ทีม)</p><p id="hofStrength" class="text-lg font-black text-white">0 kg</p></div>
+                        </div>
+                        <div class="bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/10">
+                            <div class="flex justify-between text-[10px] font-bold text-slate-300 mb-2"><span id="lblMission">ความสำเร็จเป้าหมายรวม</span><span id="globalMissionText" class="text-emerald-400">0%</span></div>
+                            <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden"><div id="globalMissionBar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-1000" style="width: 0%"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="today-schedule-box" class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm mb-6 hidden">
+                <h3 class="text-sm font-bold text-slate-700 mb-3"><i class="fa-solid fa-calendar-day text-indigo-500 mr-1"></i> ตารางสอนวันนี้ (Today's Schedule)</h3>
+                <div id="todayScheduleContainer" class="space-y-2"></div>
+            </div>
+            
+            <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-4 flex flex-col sm:flex-row gap-2">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-slate-400 text-sm"></i>
+                    <input type="text" id="searchBar" onkeyup="resetPageAndRender()" placeholder="ค้นหาชื่อลูกเทรน..." class="w-full bg-slate-50 border-0 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition font-medium">
+                </div>
+                <div class="flex gap-1 overflow-x-auto pb-1 sm:pb-0">
+                    <button onclick="setClientFilter('all')" id="filter-all" class="px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm bg-indigo-600 text-white border border-indigo-600">ทั้งหมด</button>
+                    <button onclick="setClientFilter('active')" id="filter-active" class="px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm bg-slate-50 text-slate-600 border border-slate-200">Active ล่าสุด</button>
+                    <button onclick="setClientFilter('expired')" id="filter-expired" class="px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm bg-slate-50 text-slate-600 border border-slate-200">⚠️ คอร์สหมดอายุ</button>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-end mb-4 px-1">
+                <h2 class="text-base font-black text-slate-800 tracking-wide">รายชื่อลูกเทรนในการดูแล <span class="text-sm font-normal text-slate-400" id="clientCountText">(0)</span></h2>
+            </div>
+            
+            <div id="clientList" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-8"></div>
+            <div id="paginationControls" class="flex justify-center items-center gap-3 mt-6 pb-4"></div>
+        </div>
+
+        <!-- VIEW: FORM -->
+        <div id="view-form-client" class="hidden p-4 md:p-6 bg-slate-50 min-h-screen">
+            <div class="flex items-center gap-3 mb-6">
+                <button onclick="showHomeView()" class="w-10 h-10 rounded-full bg-white text-slate-600 shadow-sm border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition"><i class="fa-solid fa-arrow-left"></i></button>
+                <h2 id="formTitle" class="text-xl font-black text-slate-800 tracking-wide">เพิ่มลูกเทรนใหม่</h2>
+            </div>
+            
+            <div class="bg-white p-5 md:p-6 rounded-[2rem] shadow-sm border border-slate-100">
+                <input type="hidden" id="editIndex" value="-1">
+                <input type="hidden" id="editDbId" value="">
+                
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-sm font-bold text-indigo-600 mb-3 flex items-center gap-2"><i class="fa-solid fa-id-card"></i> ข้อมูลส่วนตัว</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">ชื่อลูกเทรน <span class="text-red-500">*</span></label><input type="text" id="clientName" placeholder="เช่น คุณสมชาย" class="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></div>
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">เพศ (มีผลกับ AI) <span class="text-red-500">*</span></label><select id="clientGender" class="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium"><option value="" disabled selected>-- เลือกเพศ --</option><option value="ชาย">ชาย (Male)</option><option value="หญิง">หญิง (Female)</option></select></div>
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">อายุ (ปี) <span class="text-red-500">*</span></label><input type="number" id="clientAge" placeholder="เช่น 28" class="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></div>
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">เบอร์โทร / Line ID</label><input type="text" id="clientContact" placeholder="สำหรับการติดต่อ" class="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100">
+                        <h3 class="text-sm font-bold text-indigo-600 mb-3 flex items-center gap-2"><i class="fa-solid fa-child-reaching"></i> สรีระ & เป้าหมาย</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">ส่วนสูง (ซม.) <span class="text-red-500">*</span></label><input type="number" id="clientHeight" placeholder="เช่น 170" class="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></div>
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">น้ำหนักเริ่มต้น (กก.) <span class="text-red-500">*</span></label><input type="number" id="clientWeight" placeholder="เช่น 75" class="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></div>
+                            <div class="sm:col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">เป้าหมายคอร์ส <span class="text-red-500">*</span></label><select id="clientGoalType" onchange="toggleGoalTarget()" class="w-full bg-indigo-50 text-indigo-900 border-0 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold"><option value="" disabled selected>-- เลือกเป้าหมาย --</option><option value="ลดน้ำหนัก">🔻 ลดน้ำหนัก / ลดไขมัน</option><option value="เพิ่มน้ำหนัก">🔺 เพิ่มน้ำหนัก / สร้างกล้ามเนื้อ</option><option value="เพื่อสุขภาพ">✨ เพื่อสุขภาพ / กระชับสัดส่วน</option></select></div>
+                            <div id="goalTargetContainer" class="hidden sm:col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">เป้าหมายตัวเลขน้ำหนัก (กก.) <span class="text-red-500">*</span></label><input type="number" id="clientGoalTarget" placeholder="เช่น 60" class="w-full bg-amber-50 border-0 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none font-bold text-amber-700"></div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100">
+                        <h3 class="text-sm font-bold text-indigo-600 mb-3 flex items-center gap-2"><i class="fa-solid fa-file-contract"></i> คอร์สเรียน & สุขภาพ</h3>
+                        <div class="grid grid-cols-1 gap-4">
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">จำนวนคอร์สสมัคร (ครั้ง) <span class="text-red-500">*</span></label><input type="number" id="clientTotalSessions" placeholder="เช่น 20" class="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-black text-indigo-600"></div>
+                            <div><label class="block text-xs font-bold text-slate-500 mb-1">ประวัติสุขภาพ / ข้อควรระวังบาดเจ็บ</label><textarea id="clientHealth" placeholder="ระบุโรคประจำตัวหรือจุดที่เคยเจ็บอดีต..." class="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none h-20 resize-none"></textarea></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6"><button onclick="saveClient()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition text-base"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> บันทึกลงระบบ Cloud</button></div>
+            </div>
+        </div>
+
+        <!-- VIEW: TIMER -->
+        <div id="view-timer" class="hidden p-4 md:p-6 bg-slate-50 min-h-screen">
+            <div class="flex items-center gap-3 mb-6">
+                <button onclick="showHomeView()" class="w-10 h-10 rounded-full bg-white text-slate-600 shadow-sm border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition"><i class="fa-solid fa-arrow-left"></i></button>
+                <h2 class="text-xl font-black text-slate-800 tracking-wide">นาฬิกาจับเวลาพัก (Coach Timer)</h2>
+            </div>
+            
+            <div class="bg-slate-900 rounded-[2.5rem] p-8 text-center shadow-xl text-white relative overflow-hidden mb-5 border border-slate-800 flex flex-col items-center justify-center min-h-[55vh]">
+                <i class="fa-solid fa-stopwatch text-9xl absolute -left-10 -bottom-10 text-white opacity-[0.02] -rotate-12"></i>
+                <div class="absolute -right-20 -top-20 w-64 h-64 bg-orange-500 filter blur-[80px] opacity-20 rounded-full"></div>
+                <h3 class="text-xs font-bold text-slate-400 mb-2 relative z-10 tracking-widest uppercase">Rest Timer</h3>
+                
+                <div id="timerDisplay" class="text-8xl md:text-9xl font-black mb-8 font-mono text-orange-400 relative z-10 drop-shadow-lg tracking-tighter">01:00</div>
+                
+                <div class="flex flex-wrap gap-2.5 justify-center mb-8 relative z-10">
+                    <button onclick="changeTimer(30)" class="bg-slate-800 px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-700 border border-slate-700 transition">30 วิ</button>
+                    <button onclick="changeTimer(45)" class="bg-slate-800 px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-700 border border-slate-700 transition">45 วิ</button>
+                    <button onclick="changeTimer(60)" class="bg-slate-800 px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-700 border border-slate-700 transition">60 วิ</button>
+                    <button onclick="changeTimer(90)" class="bg-slate-800 px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-700 border border-slate-700 transition">90 วิ</button>
+                    <button onclick="changeTimer(120)" class="bg-slate-800 px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-700 border border-slate-700 transition">2 นาที</button>
+                </div>
+                <button id="startTimerBtn" onclick="startTimer()" class="relative z-10 bg-orange-500 text-white font-black py-4 px-10 rounded-2xl w-full max-w-sm hover:bg-orange-600 transition shadow-lg shadow-orange-500/20 active:scale-95 text-base">
+                    <i class="fa-solid fa-play mr-1"></i> เริ่มจับเวลาพัก
+                </button>
+            </div>
+        </div>
+
+        <!-- VIEW: CLIENT SPACE -->
+        <div id="view-client-space" class="hidden bg-slate-50 min-h-screen">
+            
+            <div class="bg-gradient-to-br from-indigo-600 via-blue-600 to-blue-700 px-5 pt-6 pb-12 rounded-b-[2.5rem] relative overflow-hidden shadow-md">
+                <i class="fa-solid fa-dumbbell text-8xl absolute -right-6 -bottom-6 text-white opacity-10 -rotate-45"></i>
+                
+                <div class="relative z-10">
+                    <div class="flex justify-between items-center mb-6">
+                        <button onclick="showHomeView()" class="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/30 transition"><i class="fa-solid fa-arrow-left"></i></button>
+                        <div id="spaceCourseProgress" class="text-xs font-black text-indigo-700 bg-white px-3 py-1.5 rounded-full shadow-sm">รอบปัจจุบัน: - / - ครั้ง</div>
+                    </div>
+                    
+                    <div class="flex items-center gap-4">
+                        <div class="w-16 h-16 rounded-full bg-white p-1 shadow-lg shrink-0 relative">
+                            <div class="w-full h-full rounded-full bg-indigo-100 flex items-center justify-center text-2xl text-indigo-400 border border-slate-100">
+                                <i id="spaceClientAvatarIcon" class="fa-solid fa-user"></i>
+                            </div>
+                            <div id="spaceClientStreak" class="absolute -bottom-1 -right-1 bg-orange-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full border border-white shadow flex items-center gap-0.5">
+                                <i class="fa-solid fa-fire"></i> 0
+                            </div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h2 id="spaceClientName" class="text-xl font-black text-white tracking-wide truncate mb-0.5">ชื่อลูกค้า</h2>
+                            <div class="flex items-center gap-2 text-xs font-medium text-indigo-100 mb-1 opacity-90">
+                                <span id="spaceClientWeightGoalBox"></span>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                <div id="spaceClientBmiBox"></div>
+                                <button onclick="showNutritionAI()" class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/20 hover:bg-white/30 text-white border border-white/20 shadow-sm transition flex items-center gap-1">
+                                    <i class="fa-solid fa-utensils"></i> AI โภชนาการ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="spaceClientHealthBox" class="mt-3 text-xs text-white bg-red-500/80 backdrop-blur-sm p-2.5 rounded-xl border border-red-400 shadow-sm hidden flex items-start gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation mt-0.5"></i> <span id="spaceClientHealthText"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex p-1.5 bg-white rounded-2xl mx-5 -mt-6 relative z-20 shadow-lg border border-slate-100">
+                <button onclick="switchSpaceTab('workout')" id="tabBtn-workout" class="flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all"><i class="fa-solid fa-dumbbell mr-1"></i> จัดตาราง</button>
+                <button onclick="switchSpaceTab('history')" id="tabBtn-history" class="flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all"><i class="fa-solid fa-clipboard-check mr-1"></i> ประวัติ</button>
+                <button onclick="switchSpaceTab('charts')" id="tabBtn-charts" class="flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all"><i class="fa-solid fa-chart-line mr-1"></i> สรุปผล</button>
+            </div>
+
+            <div class="p-4 md:p-6 pb-20">
+                <!-- TAB 1: WORKOUT -->
+                <div id="tabContent-workout" class="block">
+                    <div class="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 mb-5 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center shrink-0"><i class="fa-solid fa-weight-scale"></i></div>
+                        <div class="flex-1">
+                            <label class="block text-xs font-bold text-slate-500 mb-0.5">ชั่งน้ำหนักตัววันนี้ (กก.)</label>
+                            <input type="number" id="sessionCurrentWeight" placeholder="ระบุน้ำหนักชั่งวันนี้" class="w-full bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-600 transition">
+                        </div>
+                    </div>
+                    
+                    <div class="bg-indigo-50/50 p-5 rounded-3xl border border-indigo-100 mb-5">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-black text-indigo-800 text-sm flex items-center gap-2"><i class="fa-solid fa-toolbox text-indigo-500"></i> เลือกอุปกรณ์ที่มีในสถานที่สอน</h3>
+                            <div class="flex gap-1.5 shrink-0">
+                                <button onclick="checkAllEquipment(true)" class="text-[10px] bg-white border border-slate-200 text-slate-600 px-2.5 py-1 rounded-lg shadow-sm hover:bg-slate-50 transition font-bold active:scale-95"><i class="fa-solid fa-check-double mr-1"></i> เลือกทั้งหมด</button>
+                                <button onclick="checkAllEquipment(false)" class="text-[10px] bg-white border border-rose-200 text-rose-600 px-2.5 py-1 rounded-lg shadow-sm hover:bg-rose-50 transition font-bold active:scale-95"><i class="fa-solid fa-eraser mr-1"></i> ล้างค่า</button>
+                            </div>
+                        </div>
+                        
+                        <p class="text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wide">อุปกรณ์พื้นฐาน (Basic Equipment)</p>
+                        <div class="flex flex-wrap gap-2 text-xs mb-4">
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Barbell" class="eq-chk accent-indigo-600" onchange="updateExerciseList()" checked> บาร์เบล</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Dumbbell" class="eq-chk accent-indigo-600" onchange="updateExerciseList()" checked> ดัมเบล</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Cable" class="eq-chk accent-indigo-600" onchange="updateExerciseList()" checked> เคเบิล</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Bodyweight" class="eq-chk accent-indigo-600" onchange="updateExerciseList()" checked> บอดี้เวท</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Kettlebell" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> เคตเทิลเบล</label>
+                        </div>
+
+                        <p class="text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wide">แมชชีนช่วงล่าง (Lower Body Machines)</p>
+                        <div class="flex flex-wrap gap-2 text-xs mb-4">
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Smith Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> Smith Machine</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Hack Squat Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> Hack Squat</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Leg Press Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> Leg Press</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Seated Leg Curl Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> Seated Leg Curl</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Leg Extension Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> Leg Extension</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Seated Hip Abductor" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> Hip Abductor</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Hip Thrust Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> Hip Thrust Machine</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Calf Raise Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> Calf Raise Machine</label>
+                        </div>
+
+                        <p class="text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wide">แมชชีนช่วงบน & คาร์ดิโอ (Upper & Cardio)</p>
+                        <div class="flex flex-wrap gap-2 text-xs">
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Lat Pulldown Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()" checked> Lat Pulldown</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Seated Row Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> Seated Row</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Chest Press Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> Chest Press</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Pec Deck Fly Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()" checked> Pec Deck Fly / Rear Delt</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Shoulder Press Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> Shoulder Press</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="T-Bar Row Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> T-Bar Row</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Preacher Curl Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> Preacher Curl</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Treadmill" class="eq-chk accent-indigo-600" onchange="updateExerciseList()" checked> ลู่วิ่ง (Treadmill)</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Elliptical" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> Elliptical</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Cycling Machine" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> จักรยาน</label>
+                            <label class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:bg-indigo-50"><input type="checkbox" value="Stair Master" class="eq-chk accent-indigo-600" onchange="updateExerciseList()"> Stair Master</label>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 mb-5 relative">
+                        <button onclick="generateWorkoutAI()" class="absolute -top-3 -right-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-md hover:scale-105 transition-transform flex items-center gap-1 border-2 border-white">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> AI จัดให้
+                        </button>
+                        
+                        <h3 class="font-bold text-slate-800 text-sm mb-4 flex items-center gap-2"><i class="fa-solid fa-layer-group text-indigo-500"></i> เพิ่มท่าออกกำลังกาย (Manual)</h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-6 gap-3">
+                            <select id="exCategory" class="col-span-2 sm:col-span-2 w-full bg-slate-50 border-0 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700" onchange="updateExerciseList()">
+                                <option value="" disabled selected>-- หมวดกล้ามเนื้อ --</option>
+                                <option value="chest">💪 อก</option><option value="back">🦅 หลัง</option><option value="legs">🦵 ขา</option><option value="shoulders">🥥 ไหล่</option><option value="arms">🔥 แขน</option><option value="core">🍫 ท้อง</option><option value="cardio">🏃‍♂️ คาร์ดิโอ</option><option value="custom">อื่นๆ</option>
+                            </select>
+                            <select id="exName" class="col-span-2 sm:col-span-4 w-full bg-slate-100 border-0 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 disabled:opacity-50" onchange="checkCustomExercise()" disabled><option value="" disabled selected>-- เลือกท่า --</option></select>
+                            <input type="number" id="exSets" placeholder="เซ็ต" class="w-full bg-slate-50 border-0 rounded-xl px-3 py-2.5 text-xs font-bold text-center">
+                            <input type="text" id="exReps" placeholder="ครั้ง/วิ" class="w-full bg-slate-50 border-0 rounded-xl px-3 py-2.5 text-xs font-bold text-center">
+                            <input type="number" id="exWeight" placeholder="นน.(kg)" class="col-span-2 w-full bg-slate-50 border-0 rounded-xl px-3 py-2.5 text-xs font-bold text-center">
+                        </div>
+                        <input type="text" id="exCustomName" placeholder="พิมพ์ระบุชื่อท่าเองที่นี่..." class="w-full mt-3 bg-amber-50 text-amber-900 border-0 rounded-xl px-4 py-2.5 text-sm hidden">
+                        <button onclick="addExercise()" class="mt-4 w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-900 shadow-md text-xs"><i class="fa-solid fa-plus mr-1"></i> เพิ่มเข้าตารางซ้อม</button>
+                    </div>
+                    
+                    <div class="mb-5">
+                        <h3 class="font-bold mb-3 text-sm text-slate-700 flex items-center gap-2 pl-1"><i class="fa-solid fa-list-check text-emerald-500"></i> โปรแกรมซ้อมวันนี้</h3>
+                        <div id="currentWorkoutList" class="space-y-2"></div>
+                    </div>
+                    
+                    <button onclick="completeSession()" class="bg-green-600 text-white w-full py-4 rounded-2xl hover:bg-green-700 font-black shadow-lg text-base transition-all flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle text-xl"></i> บันทึกผล & ตัดคอร์ส</button>
+                </div>
+
+                <!-- TAB 2: HISTORY -->
+                <div id="tabContent-history" class="hidden">
+                    <div class="mb-4 bg-white p-4 rounded-3xl shadow-sm border border-slate-100">
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide"><i class="fa-regular fa-calendar-check text-indigo-500 mr-1"></i> เลือกวันที่คลาสเรียน</label>
+                        <select id="historySessionSelect" onchange="changeHistorySession()" class="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-sm font-bold text-indigo-700 cursor-pointer"></select>
+                    </div>
+                    <div id="historyDetailContainer"></div>
+                </div>
+
+                <!-- TAB 3: CHARTS / REPORTS -->
+                <div id="tabContent-charts" class="hidden">
+                    <div class="flex justify-end mb-4">
+                        <button onclick="captureSummaryReport()" class="bg-white text-indigo-600 border border-indigo-200 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-50 shadow-sm flex items-center gap-2 transition">
+                            <i class="fa-solid fa-camera"></i> บันทึกภาพแชร์ผลงาน
+                        </button>
+                    </div>
+                    
+                    <div id="captureArea" class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 via-blue-500 to-emerald-400"></div>
+                        
+                        <div class="text-center mb-5 mt-3">
+                            <h2 class="text-xl font-black text-slate-800 tracking-tight">PROGRESS REPORT 📊</h2>
+                            <p class="text-xs text-slate-500 font-medium mt-0.5">สรุปพัฒนาการรายบุคคลของ คุณ<span id="chartClientName" class="text-indigo-600 font-bold ml-1"></span></p>
+                        </div>
+                        
+                        <div id="aiPredictionBox" class="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 p-4 rounded-2xl mb-5 text-center flex flex-col items-center justify-center gap-2">
+                            <p id="aiPredictionText" class="text-xs md:text-sm font-bold text-purple-700 leading-relaxed"></p>
+                            <button id="aiActionBtn" onclick="triggerClientEditFromAI()" class="hidden text-[10px] bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded-xl shadow transition"><i class="fa-solid fa-pen"></i> คลิกเพื่อกรอกข้อมูลเพิ่ม</button>
+                        </div>
+
+                        <div class="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 mb-5">
+                            <h4 class="text-xs font-bold text-emerald-800 mb-2 uppercase tracking-wide"><i class="fa-solid fa-utensils text-emerald-500 mr-1"></i> สรุปเป้าหมายโภชนาการประจำตัว (Daily Calories & Macros)</h4>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                                <div class="bg-white p-2.5 rounded-xl shadow-sm"><span class="block text-[9px] text-slate-400 font-bold">พลังงานเป้าหมาย</span><span id="nutriKcal" class="text-base font-black text-slate-800">-</span> <span class="text-[9px] text-slate-400 font-medium">kcal</span></div>
+                                <div class="bg-white p-2.5 rounded-xl shadow-sm"><span class="block text-[9px] text-rose-400 font-bold">🥩 โปรตีน (Protein)</span><span id="nutriProtein" class="text-base font-black text-rose-600">-</span> <span class="text-[9px] text-slate-400 font-medium">กรัม</span></div>
+                                <div class="bg-white p-2.5 rounded-xl shadow-sm"><span class="block text-[9px] text-amber-500 font-bold">🍚 คาร์บ (Carbs)</span><span id="nutriCarbs" class="text-base font-black text-amber-600">-</span> <span class="text-[9px] text-slate-400 font-medium">กรัม</span></div>
+                                <div class="bg-white p-2.5 rounded-xl shadow-sm"><span class="block text-[9px] text-blue-400 font-bold">🥑 ไขมัน (Fat)</span><span id="nutriFat" class="text-base font-black text-blue-600">-</span> <span class="text-[9px] text-slate-400 font-medium">กรัม</span></div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+                            <div class="sm:col-span-2 flex flex-col gap-3">
+                                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 flex justify-between items-center">
+                                    <div><p class="text-[10px] text-slate-400 font-bold uppercase mb-0.5">เป้าหมายคอร์สการฝึก</p><p id="chartClientGoal" class="text-sm font-bold text-slate-800"></p></div>
+                                    <div class="text-right"><p class="text-[10px] text-slate-400 font-bold uppercase mb-0.5">สถานะปัจจุบัน</p><p id="chartClientWeightStats" class="text-xs font-bold text-indigo-600"></p></div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3 flex-1">
+                                    <div class="bg-indigo-50 border border-indigo-100/50 rounded-2xl p-4 text-center flex flex-col justify-center">
+                                        <p class="text-3xl font-black text-indigo-600" id="summaryTotalSessions"></p>
+                                        <p class="text-[10px] font-bold text-indigo-800/60 mt-1 uppercase">เข้าเรียนคอร์สนี้</p>
+                                    </div>
+                                    <div class="bg-emerald-50 border border-emerald-100/50 rounded-2xl p-4 text-center flex flex-col justify-center">
+                                        <p class="text-3xl font-black text-emerald-600" id="summaryCompletionRate"></p>
+                                        <p class="text-[10px] font-bold text-emerald-800/60 mt-1 uppercase">วินัยการฝึกซ้อม</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col items-center justify-center">
+                                <p class="text-[10px] text-slate-500 font-bold mb-2 uppercase tracking-wide">สัดส่วนกล้ามเนื้อ vs ไขมัน</p>
+                                <div class="w-28 h-28 relative"><canvas id="categoryChart"></canvas></div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100"><p class="text-xs font-bold text-slate-700 mb-2"><i class="fa-solid fa-arrow-trend-down text-blue-500 mr-1"></i> แนวโน้มน้ำหนักตัว (Weight Trend)</p><div class="w-full h-40"><canvas id="weightTrendChart"></canvas></div></div>
+                            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100"><p class="text-xs font-bold text-slate-700 mb-2"><i class="fa-solid fa-bolt text-amber-500 mr-1"></i> พัฒนาการแรงยกสูงสุด (PR Strength)</p><div class="w-full h-40"><canvas id="strengthTrendChart"></canvas></div></div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100"><p class="text-xs font-bold text-slate-700 mb-2"><i class="fa-solid fa-chart-column mr-1"></i> จำนวนเซ็ตแยกตามกลุ่มกล้ามเนื้อ</p><div style="position: relative; height: 180px; width: 100%;"><canvas id="topExercisesChart"></canvas></div></div>
+                            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100"><p class="text-xs font-bold text-slate-700 mb-2"><i class="fa-solid fa-fire text-orange-500 mr-1"></i> สถิติท่าออกกำลังกายที่ฝึกบ่อย</p><div style="position: relative; height: 180px; width: 100%;"><canvas id="specificExercisesChart"></canvas></div></div>
+                        </div>
+
+                        <div class="bg-gradient-to-r from-amber-100 to-orange-50 p-4 rounded-2xl border border-amber-200 flex flex-col sm:flex-row justify-between items-center gap-5">
+                            <div class="flex-1 w-full">
+                                <div class="flex justify-between text-[10px] font-bold text-amber-800/60 mb-1 uppercase tracking-wider"><span>ความคืบหน้าของคอร์ส</span> <span id="summaryCourseText">0%</span></div>
+                                <div class="w-full bg-amber-200/50 rounded-full h-2"><div id="summaryCourseBar" class="bg-gradient-to-r from-amber-400 to-orange-500 h-2 rounded-full transition-all duration-700 shadow-sm" style="width: 0%"></div></div>
+                            </div>
+                            <div class="bg-white text-orange-600 px-6 py-2 rounded-xl text-center shadow-sm min-w-[160px] border border-orange-100">
+                                <span class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">น้ำหนักตัวขยับแล้ว</span>
+                                <span id="weightDiffHighlight" class="font-black text-xl leading-none">- กก.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ======== 1. การเชื่อมต่อ Supabase ========
+        const SUPABASE_URL = 'https://apbhepjntcjhwmpgdwlu.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwYmhlcGpudGNqaHdtcGdkd2x1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MDQxMTMsImV4cCI6MjA5NDk4MDExM30.V6h-1vslQBFFewCj5GbQGl6GuBWjj4JL6gKtDqGTPZk'; 
+        
+        let db = null;
+        if(SUPABASE_ANON_KEY !== 'ใส่_ANON_KEY_ของคุณที่นี่') {
+            db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+
+        // ======== 2. ตัวแปรสถานะแอป ========
+        let clients = [];
+        let currentActiveClientIndex = -1;
+        let currentWorkoutPlan = []; 
+        let currentHistorySessionIndex = -1;
+        let currentFilterMode = 'all';
+        let currentPage = 1;
+        const clientsPerPage = 10;
+        
+        let myCategoryChart = null; 
+        let myWeightTrendChart = null; 
+        let myStrengthTrendChart = null; 
+        let myTopExercisesChart = null; 
+        let mySpecificExercisesChart = null; 
+        let myGlobalExpertiseChart = null;
+
+        // ======== Timer & Sound Module ========
+        let timerInterval;
+        let defaultTime = 60;
+        let timeLeft = 60;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playBeep(isFinal = false) {
+            initAudio();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            if (isFinal) {
+                // เสียงตอนหมดเวลา (เสียงแหลมยาว)
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime + 0.2);
+                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 1.5);
+            } else {
+                // เสียงนับถอยหลัง 5 4 3 2 1 (เสียงติ๊ดสั้นๆ)
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(500, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.2);
+            }
+        }
+
+        function changeTimer(seconds) {
+            defaultTime = seconds;
+            timeLeft = seconds;
+            updateTimerDisplay();
+            clearInterval(timerInterval);
+            resetTimerUI();
+        }
+
+        function resetTimerUI() {
+            const btn = document.getElementById('startTimerBtn');
+            if(btn) {
+                btn.innerHTML = '<i class="fa-solid fa-play mr-1"></i> เริ่มจับเวลาพัก';
+                btn.className = 'relative z-10 bg-orange-500 text-white font-black py-4 px-10 rounded-2xl w-full max-w-sm hover:bg-orange-600 transition shadow-lg shadow-orange-500/20 active:scale-95 text-base';
+            }
+            const display = document.getElementById('timerDisplay');
+            if(display) { display.className = 'text-8xl md:text-9xl font-black mb-8 font-mono text-orange-400 relative z-10 drop-shadow-lg tracking-tighter'; }
+        }
+
+        function startTimer() {
+            initAudio(); // Initialize audio context on user click
+            clearInterval(timerInterval);
+            if (timeLeft <= 0) timeLeft = defaultTime;
+            updateTimerDisplay();
+            
+            const btn = document.getElementById('startTimerBtn');
+            if(btn) {
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังจับเวลา...';
+                btn.className = 'relative z-10 bg-slate-700 text-white font-black py-4 px-10 rounded-2xl w-full max-w-sm cursor-not-allowed text-base';
+            }
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                // แจ้งเตือน 5 วินาทีสุดท้าย
+                if (timeLeft > 0 && timeLeft <= 5) {
+                    playBeep(false);
+                }
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    playBeep(true); // เสียงหมดเวลา
+                    if(btn) {
+                        btn.innerHTML = '<i class="fa-solid fa-bell mr-1"></i> หมดเวลา!';
+                        btn.className = 'relative z-10 bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 px-10 rounded-2xl w-full max-w-sm transition shadow-lg animate-pulse text-base';
+                    }
+                    const display = document.getElementById('timerDisplay');
+                    if(display) { display.className = 'text-8xl md:text-9xl font-black mb-8 font-mono text-emerald-400 relative z-10 drop-shadow-lg tracking-tighter animate-bounce'; }
+                    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            const el = document.getElementById('timerDisplay');
+            if(el) el.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // ======== 3. การเชื่อมต่อข้อมูล Cloud ========
+        function showLoading(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            if(overlay) {
+                if(show) overlay.style.display = 'flex';
+                else overlay.style.display = 'none';
+            }
+        }
+
+        async function fetchClientsFromCloud() {
+            if(!db) {
+                showLoading(false);
+                clients = JSON.parse(localStorage.getItem('trainerClients')) || [];
+                renderClients();
+                return;
+            }
+
+            try {
+                const { data, error } = await db.from('clients').select('*').order('created_at', { ascending: true });
+                if (error) throw error;
+                clients = data || [];
+                renderClients();
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                if (error instanceof ReferenceError || error instanceof SyntaxError) {
+                    Swal.fire('พบข้อผิดพลาดในโค้ด', error.message, 'error');
+                } else {
+                    Swal.fire('ข้อผิดพลาด', 'ไม่สามารถดึงข้อมูลจาก Cloud ได้ กรุณาตรวจสอบ Network', 'error');
+                }
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function saveClientsToCloud() {
+            if(!db) {
+                localStorage.setItem('trainerClients', JSON.stringify(clients));
+                return true; 
+            }
+
+            try {
+                showLoading(true);
+                const { data, error } = await db.from('clients').upsert(clients).select();
+                if (error) throw error;
+                clients = data;
+                return true;
+            } catch (error) {
+                console.error("Error saving data:", error);
+                Swal.fire('ข้อผิดพลาดการบันทึก', 'ไม่สามารถอัปเดตฐานข้อมูลได้: ' + error.message, 'error');
+                return false;
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function deleteClientFromCloud(dbId) {
+            if(!db || !dbId) return true; 
+            try {
+                showLoading(true);
+                const { error } = await db.from('clients').delete().eq('id', dbId);
+                if (error) throw error;
+                return true;
+            } catch (error) {
+                console.error("Error deleting data:", error);
+                Swal.fire('ข้อผิดพลาด', 'ไม่สามารถลบข้อมูลจากระบบได้', 'error');
+                return false;
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // ======== 4. ฟังก์ชันหลัก (CRUD) ========
+        async function saveClient() { 
+            const name = document.getElementById('clientName').value; 
+            const gender = document.getElementById('clientGender').value; 
+            const weight = parseFloat(document.getElementById('clientWeight').value); 
+            const height = parseInt(document.getElementById('clientHeight').value) || null; 
+            const age = parseInt(document.getElementById('clientAge').value) || null; 
+            const contact = document.getElementById('clientContact').value; 
+            const goalType = document.getElementById('clientGoalType').value; 
+            const goalTarget = parseFloat(document.getElementById('clientGoalTarget').value) || null; 
+            const totalSessions = parseInt(document.getElementById('clientTotalSessions').value) || null; 
+            const health = document.getElementById('clientHealth').value; 
+            const editIndex = document.getElementById('editIndex').value; 
+            const editDbId = document.getElementById('editDbId').value; 
+            
+            if (!name || !gender || !weight || !height || !age || !goalType || !totalSessions) { return Swal.fire({title:'ข้อมูลไม่ครบถ้วน', text:'กรุณากรอกช่องข้อมูลสำคัญให้ครบถ้วนครับ', icon:'warning', customClass: { popup: 'rounded-3xl' }}); } 
+            
+            let finalGoal = goalType; 
+            if(goalType === 'ลดน้ำหนัก' || goalType === 'เพิ่มน้ำหนัก') { 
+                if(!goalTarget) return Swal.fire({title:'ข้อมูลไม่ครบ', text:'กรุณาระบุน้ำหนักเป้าหมาย (ตัวเลข)', icon:'warning', customClass: { popup: 'rounded-3xl' }}); 
+                finalGoal = `${goalType} ${goalTarget} กก.`; 
+            } 
+            
+            let newClientData = { name, gender, weight, height, age, contact, goal: finalGoal, goalType, goalTarget, totalSessions, health, usedSessions: 0, workoutHistory: [] };
+
+            if (editIndex === '-1') { 
+                clients.push(newClientData); 
+            } else { 
+                if(editDbId) newClientData.id = editDbId;
+                newClientData.workoutHistory = clients[editIndex].workoutHistory;
+                newClientData.usedSessions = clients[editIndex].usedSessions;
+                clients[editIndex] = newClientData; 
+            } 
+            
+            const success = await saveClientsToCloud();
+            if(success) {
+                Swal.fire({ title: 'สำเร็จ!', icon: 'success', timer: 1500, showConfirmButton: false, customClass: { popup: 'rounded-3xl' } }); 
+                showHomeView(); 
+            }
+        }
+
+        function editClient(index) { 
+            const client = clients[index]; 
+            document.getElementById('clientName').value = client.name; 
+            document.getElementById('clientGender').value = client.gender || ''; 
+            document.getElementById('clientWeight').value = client.weight; 
+            document.getElementById('clientHeight').value = client.height || ''; 
+            document.getElementById('clientAge').value = client.age || ''; 
+            document.getElementById('clientContact').value = client.contact || ''; 
+            
+            if(client.goalType) { 
+                document.getElementById('clientGoalType').value = client.goalType; 
+                document.getElementById('clientGoalTarget').value = client.goalTarget || ''; 
+                toggleGoalTarget(); 
+            } else { 
+                document.getElementById('clientGoalType').value = 'เพื่อสุขภาพ'; 
+                document.getElementById('clientGoalTarget').value = ''; 
+                toggleGoalTarget(); 
+            } 
+            
+            document.getElementById('clientTotalSessions').value = client.totalSessions || ''; 
+            document.getElementById('clientHealth').value = client.health || ''; 
+            document.getElementById('editIndex').value = index; 
+            document.getElementById('editDbId').value = client.id || ''; 
+            document.getElementById('formTitle').innerText = `แก้ไขประวัติ: ${client.name}`; 
+            showAddClientView(); 
+        }
+
+        function resetForm() { 
+            document.getElementById('clientName').value = ''; document.getElementById('clientGender').value = ''; document.getElementById('clientWeight').value = ''; document.getElementById('clientHeight').value = ''; document.getElementById('clientAge').value = ''; document.getElementById('clientContact').value = ''; document.getElementById('clientGoalType').value = ''; document.getElementById('clientGoalTarget').value = ''; toggleGoalTarget(); document.getElementById('clientTotalSessions').value = ''; document.getElementById('clientHealth').value = ''; 
+            document.getElementById('editIndex').value = '-1'; 
+            document.getElementById('editDbId').value = ''; 
+            document.getElementById('formTitle').innerText = 'เพิ่มลูกเทรนใหม่'; 
+        }
+
+        function deleteClient(index) { 
+            Swal.fire({ title: 'ลบลูกเทรนคอร์สนี้?', text: "ประวัติการเรียนทั้งหมดจะถูกถอนการติดตั้งออกจากฐานข้อมูลถาวร!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#94a3b8', confirmButtonText: 'ใช่, ลบเลย', customClass: { popup: 'rounded-3xl' } }).then(async (result) => { 
+                if (result.isConfirmed) { 
+                    const clientDbId = clients[index].id;
+                    clients.splice(index, 1); 
+                    if(clientDbId) {
+                        await deleteClientFromCloud(clientDbId);
+                    } else {
+                        localStorage.setItem('trainerClients', JSON.stringify(clients)); 
+                    }
+                    resetPageAndRender(); 
+                    Swal.fire({ title: 'ลบข้อมูลสำเร็จ!', icon: 'success', timer: 1500, showConfirmButton: false, customClass: { popup: 'rounded-3xl' } }); 
+                } 
+            }); 
+        }
+
+        async function processSaveSession() { 
+            const client = clients[currentActiveClientIndex]; const weightInput = document.getElementById('sessionCurrentWeight').value; const todayWeight = weightInput ? parseFloat(weightInput) : (client.workoutHistory.length > 0 ? client.workoutHistory[client.workoutHistory.length - 1].currentWeight : client.weight); 
+            const sessionData = { date: new Date().toLocaleDateString('th-TH'), time: new Date().toLocaleTimeString('th-TH'), workout: currentWorkoutPlan, currentWeight: todayWeight, signature: null }; 
+            if (!client.workoutHistory) client.workoutHistory = []; client.workoutHistory.push(sessionData); client.usedSessions = (client.usedSessions || 0) + 1; 
+            clients[currentActiveClientIndex] = client; 
+            const success = await saveClientsToCloud();
+            if(success) {
+                Swal.fire({ title: 'บันทึกสำเร็จ!', text: 'ระบบหักคอร์สการเรียนเรียบร้อย', icon: 'success', timer: 2000, showConfirmButton: false, customClass: { popup: 'rounded-3xl' } }); 
+                showHomeView(); 
+            }
+        }
+
+        async function saveHistoryDetails() { 
+            const sessionIndex = currentHistorySessionIndex; const canvas = document.getElementById('canvas_' + sessionIndex); if (!canvas || canvas.dataset.hasSignature !== "true") return Swal.fire({title:'ยังไม่ได้เซ็นชื่อ', text:'กรุณาเซ็นชื่อลายมือเพื่อล็อกประวัติคลาสสอนครับ!', icon:'error', customClass: { popup: 'rounded-3xl' }}); const client = clients[currentActiveClientIndex]; const session = client.workoutHistory[sessionIndex]; session.workout.forEach((ex, exIndex) => { const radios = document.getElementsByName(`status_${sessionIndex}_${exIndex}`); for (let r of radios) { if (r.checked) { ex.status = r.value; break; } } }); session.signature = canvas.toDataURL("image/png"); 
+            const success = await saveClientsToCloud();
+            if(success) {
+                Swal.fire({ title: 'สำเร็จ!', icon: 'success', timer: 1500, showConfirmButton: false, customClass: { popup: 'rounded-3xl' } }); renderHistoryDetail(sessionIndex); 
+            }
+        }
+        
+        async function renewClient(index) { 
+            const client = clients[index]; 
+            Swal.fire({ 
+                title: '🔄 ต่ออายุจำนวนคลาสซ้อม', 
+                html: `ระบุจำนวนคอร์สเข้าเรียนรอบใหม่สำหรับ <br><b class="text-indigo-600">${client.name}</b>`, 
+                input: 'number', inputValue: 20, icon: 'info', showCancelButton: true, confirmButtonColor: '#4f46e5', confirmButtonText: 'บันทึกต่ออายุ', 
+                customClass: { popup: 'rounded-3xl', input: 'rounded-xl text-center font-bold text-xl' },
+                inputValidator: (value) => { if (!value || value <= 0) return 'กรุณาระบุจำนวนครั้งที่ถูกต้อง!'; } 
+            }).then(async (result) => { 
+                if (result.isConfirmed) { 
+                    client.totalSessions = parseInt(result.value); client.usedSessions = 0; 
+                    const success = await saveClientsToCloud();
+                    if(success) {
+                        resetPageAndRender(); 
+                        Swal.fire({title:'สำเร็จ!', icon:'success', timer: 1500, customClass:{popup:'rounded-3xl'}}); 
+                    }
+                } 
+            }); 
+        }
+
+        // ======== 5. ระบบ Navigation & Views ========
+        function showHomeView() { 
+            document.getElementById('view-form-client').classList.add('hidden'); 
+            document.getElementById('view-client-space').classList.add('hidden'); 
+            document.getElementById('view-timer').classList.add('hidden'); 
+            document.getElementById('view-home').classList.remove('hidden'); 
+            document.getElementById('app-header').classList.remove('hidden'); 
+            currentActiveClientIndex = -1; 
+            renderClients(); 
+        }
+        
+        function showAddClientView() { 
+            document.getElementById('view-home').classList.add('hidden'); 
+            document.getElementById('view-client-space').classList.add('hidden'); 
+            document.getElementById('view-timer').classList.add('hidden'); 
+            document.getElementById('app-header').classList.add('hidden'); 
+            document.getElementById('view-form-client').classList.remove('hidden'); 
+            window.scrollTo({ top: 0, behavior: 'smooth' }); 
+        }
+
+        function showTimerView() {
+            document.getElementById('view-form-client').classList.add('hidden'); 
+            document.getElementById('view-client-space').classList.add('hidden'); 
+            document.getElementById('view-home').classList.add('hidden'); 
+            document.getElementById('app-header').classList.add('hidden'); 
+            document.getElementById('view-timer').classList.remove('hidden'); 
+            resetTimerUI();
+            window.scrollTo({ top: 0, behavior: 'smooth' }); 
+        }
+        
+        function openClientSpacePage(index) {
+            currentActiveClientIndex = index; const client = clients[index]; 
+            document.getElementById('view-home').classList.add('hidden'); 
+            document.getElementById('app-header').classList.add('hidden'); 
+            document.getElementById('view-timer').classList.add('hidden'); 
+            document.getElementById('view-client-space').classList.remove('hidden');
+            
+            document.getElementById('spaceClientName').innerText = client.name; 
+            document.getElementById('spaceClientAvatarIcon').className = `fa-solid ${client.gender === 'หญิง' ? 'fa-person-dress' : 'fa-person'}`;
+            
+            let currentWeight = parseFloat(client.weight) || 0; 
+            if (client.workoutHistory && client.workoutHistory.length > 0) { currentWeight = parseFloat(client.workoutHistory[client.workoutHistory.length - 1].currentWeight) || currentWeight; } 
+            
+            document.getElementById('spaceClientWeightGoalBox').innerHTML = `<i class="fa-solid fa-bullseye text-amber-300"></i> ${client.goal} <span class="mx-1 opacity-50">|</span> <i class="fa-solid fa-weight-scale"></i> ล่าสุด: ${currentWeight} กก.`;
+            document.getElementById('spaceCourseProgress').innerText = `รอบปัจจุบัน: ${client.usedSessions || 0}/${client.totalSessions || 0} ครั้ง`;
+            
+            // Streak Gamification Counter
+            const streakCount = client.workoutHistory ? client.workoutHistory.length : 0;
+            document.getElementById('spaceClientStreak').innerHTML = `<i class="fa-solid fa-fire text-orange-400"></i> ${streakCount}`;
+            
+            let heightM = (parseFloat(client.height) || 0) / 100; let bmiBadge = "";
+            if(currentWeight > 0 && heightM > 0) { 
+                let bmi = (currentWeight / (heightM * heightM)).toFixed(1); let bmiText = ""; let bmiClass = ""; 
+                if(bmi < 18.5) { bmiText = "ผอม"; bmiClass = "bg-blue-100/20 text-blue-100 border-blue-200/30"; } 
+                else if(bmi < 23) { bmiText = "ปกติ"; bmiClass = "bg-emerald-100/20 text-emerald-100 border-emerald-200/30"; } 
+                else if(bmi < 25) { bmiText = "ท้วม"; bmiClass = "bg-yellow-100/20 text-yellow-100 border-yellow-200/30"; } 
+                else if(bmi < 30) { bmiText = "อ้วน"; bmiClass = "bg-orange-100/20 text-orange-100 border-orange-200/30"; } 
+                else { bmiText = "อ้วนมาก"; bmiClass = "bg-rose-100/20 text-rose-100 border-rose-200/30"; }
+                bmiBadge = `<span class="text-[10px] font-bold px-2 py-0.5 rounded-md backdrop-blur-sm border shadow-sm ${bmiClass}">BMI: ${bmi} (${bmiText})</span>`; 
+            }
+            document.getElementById('spaceClientBmiBox').innerHTML = bmiBadge;
+
+            const healthBox = document.getElementById('spaceClientHealthBox');
+            if(client.health) { 
+                document.getElementById('spaceClientHealthText').innerText = client.health; 
+                healthBox.classList.remove('hidden'); 
+            } else { healthBox.classList.add('hidden'); } 
+            
+            switchSpaceTab('workout'); window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function switchSpaceTab(tabName) { 
+            const tabs = ['workout', 'history', 'charts']; 
+            tabs.forEach(t => { 
+                const btn = document.getElementById(`tabBtn-${t}`); const content = document.getElementById(`tabContent-${t}`); 
+                if(t === tabName) { 
+                    btn.className = "flex-1 py-2.5 text-xs sm:text-sm font-black rounded-xl shadow-sm bg-indigo-600 text-white border border-indigo-600"; 
+                    content.classList.remove('hidden'); content.classList.add('block'); 
+                } 
+                else { 
+                    btn.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-50"; 
+                    content.classList.remove('block'); content.classList.add('hidden'); 
+                } 
+            }); 
+            if(tabName === 'workout') { openWorkoutSection(); } 
+            if(tabName === 'history') { openHistorySection(); } 
+            if(tabName === 'charts')  { openChartsSection(); } 
+        }
+
+        function triggerClientEditFromAI() {
+            if(currentActiveClientIndex !== -1) editClient(currentActiveClientIndex);
+        }
+
+        function setClientFilter(mode) {
+            currentFilterMode = mode;
+            ['all', 'active', 'expired'].forEach(m => {
+                const btn = document.getElementById(`filter-${m}`);
+                if(m === mode) {
+                    btn.className = "px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm bg-indigo-600 text-white border border-indigo-600";
+                } else {
+                    btn.className = "px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm bg-slate-50 text-slate-600 border border-slate-200";
+                }
+            });
+            currentPage = 1;
+            renderClients();
+        }
+        
+        function resetPageAndRender() {
+            currentPage = 1;
+            renderClients();
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            renderClients();
+            window.scrollTo({ top: document.getElementById('searchBar').offsetTop - 50, behavior: 'smooth' });
+        }
+
+        function showDonationPopup() {
+            Swal.fire({
+                title: 'สนับสนุนค่าน้ำชา ☕',
+                html: `
+                    <div class="text-center mt-2">
+                        <p class="text-sm font-bold text-slate-800 mb-1">ธนาคารกรุงไทย (KTB)</p>
+                        <p class="text-sm text-slate-600 mb-3">จุมพฏ เสาวดี</p>
+                        <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-xl text-center mb-2">
+                            <p class="text-3xl font-black text-indigo-600 tracking-wider">4080777582</p>
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa-regular fa-copy"></i> คัดลอกเลขบัญชี',
+                cancelButtonText: 'ปิด',
+                confirmButtonColor: '#4f46e5',
+                cancelButtonColor: '#94a3b8',
+                customClass: { popup: 'rounded-3xl' }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const tempInput = document.createElement("input");
+                    tempInput.value = "4080777582";
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(tempInput);
+                    Swal.fire({title: 'คัดลอกสำเร็จ! 🙏',text: 'ขอบคุณที่สนับสนุนค่าน้ำชาครับ',icon: 'success',timer: 2000,showConfirmButton: false,customClass: { popup: 'rounded-3xl' }});
+                }
+            });
+        }
+
+        // ======== 6. Backup Data System ========
+        function manageDataSync() { 
+            Swal.fire({ 
+                title: '⚙️ สำรองและย้ายข้อมูล', 
+                html: `<p class="text-sm text-slate-500 mb-5">หากต้องการย้ายอุปกรณ์ ให้บันทึกไฟล์สำรองข้อมูลนี้ไปนำเข้าเครื่องใหม่ครับ</p><div class="flex flex-col gap-3"><button onclick="exportData()" class="bg-indigo-600 text-white font-bold py-3.5 rounded-xl shadow w-full hover:bg-indigo-700 flex items-center justify-center gap-2"><i class="fa-solid fa-cloud-arrow-up"></i> ส่งออกข้อมูล (Backup)</button><button onclick="document.getElementById('importFile').click()" class="bg-slate-100 text-slate-700 font-bold py-3.5 rounded-xl border border-slate-200 w-full hover:bg-slate-200 flex items-center justify-center gap-2"><i class="fa-solid fa-cloud-arrow-down"></i> นำเข้าข้อมูล (Restore)</button></div>`, 
+                showConfirmButton: false, 
+                showCloseButton: true,
+                customClass: { popup: 'rounded-3xl' }
+            }); 
+        }
+
+        function exportData() { 
+            const dataStr = JSON.stringify(clients); 
+            const dataBlob = new Blob([dataStr], { type: 'application/json' }); 
+            const url = URL.createObjectURL(dataBlob); 
+            const link = document.createElement('a'); 
+            link.download = `TrainerPro_Backup_${new Date().toLocaleDateString('th-TH').replace(/\//g, '-')}.json`; 
+            link.href = url; 
+            link.click(); 
+            Swal.close(); 
+            Swal.fire({title: 'ดาวน์โหลดสำเร็จ', text: 'ได้บันทึกไฟล์สำรองข้อมูลลงเครื่องแล้ว', icon: 'success', customClass: { popup: 'rounded-3xl' }}); 
+        }
+
+        function importData(event) { 
+            const file = event.target.files[0]; 
+            if (!file) return; 
+            const reader = new FileReader(); 
+            reader.onload = async function(e) { 
+                try { 
+                    const importedData = JSON.parse(e.target.result); 
+                    if (Array.isArray(importedData)) { 
+                        Swal.fire({ 
+                            title: 'ยืนยันการนำเข้าข้อมูล?', 
+                            text: "ข้อมูลเก่าในแอปรอบปัจจุบันจะถูกเขียนทับทิ้งทั้งหมด", 
+                            icon: 'warning', 
+                            showCancelButton: true, 
+                            confirmButtonColor: '#10B981', 
+                            cancelButtonColor: '#EF4444', 
+                            confirmButtonText: 'ยืนยัน', 
+                            cancelButtonText: 'ยกเลิก',
+                            customClass: { popup: 'rounded-3xl' }
+                        }).then(async (result) => { 
+                            if (result.isConfirmed) { 
+                                const sanitizedData = importedData.map(c => ({
+                                    name: c.name || '',
+                                    gender: c.gender || null,
+                                    age: parseInt(c.age) || null,
+                                    height: parseInt(c.height) || null,
+                                    weight: parseFloat(c.weight) || null,
+                                    contact: c.contact || null,
+                                    goal: c.goal || '',
+                                    goalType: c.goalType || null,
+                                    goalTarget: parseFloat(c.goalTarget) || null,
+                                    totalSessions: parseInt(c.totalSessions) || null,
+                                    usedSessions: parseInt(c.usedSessions) || 0,
+                                    health: c.health || null,
+                                    workoutHistory: c.workoutHistory || []
+                                }));
+
+                                clients = sanitizedData; 
+                                const success = await saveClientsToCloud();
+                                if(success) {
+                                    renderClients(); 
+                                    Swal.fire({title: 'สำเร็จ', text:'ข้อมูลถูกคัดกรองและส่งขึ้น Cloud เรียบร้อยแล้ว', icon:'success', customClass: { popup: 'rounded-3xl' }}); 
+                                }
+                                document.getElementById('importFile').value = ''; 
+                            } 
+                        }); 
+                    } else { 
+                        Swal.fire({title:'ไฟล์ไม่ถูกต้อง', icon:'error', customClass: { popup: 'rounded-3xl' }}); 
+                    } 
+                } catch (error) { 
+                    Swal.fire({title:'ข้อผิดพลาด', text:'ไม่สามารถอ่านไฟล์ได้', icon:'error', customClass: { popup: 'rounded-3xl' }}); 
+                } 
+            }; 
+            reader.readAsText(file); 
+        }
+
+        // ======== 8. Nutrition & AI ========
+        function calculateNutritionValues(client) {
+            const w = parseFloat(client.weight) || 0; 
+            const h = parseFloat(client.height) || 0; 
+            const a = parseFloat(client.age) || 0; 
+            const gender = client.gender || 'ชาย'; 
+            if(w===0 || h===0 || a===0) return null;
+            let bmr = (10 * w) + (6.25 * h) - (5 * a); 
+            bmr += (gender === 'หญิง') ? -161 : 5; 
+            let tdee = bmr * 1.55; 
+            let goalText = client.goal.toLowerCase(); 
+            if(goalText.includes('ลด')) tdee -= 500; 
+            else if (goalText.includes('เพิ่ม')) tdee += 500; 
+            let protein = Math.round(w * 2.2); 
+            let fat = Math.round(w * 1); 
+            let carbs = Math.max(0, Math.round((tdee - (protein*4) - (fat*9)) / 4));
+            return { kcal: Math.round(tdee), protein, carbs, fat };
+        }
+
+        function showNutritionAI() { 
+            const client = clients[currentActiveClientIndex]; 
+            const nut = calculateNutritionValues(client);
+            if(!nut) { 
+                return Swal.fire({title:'ข้อมูลไม่สมบูรณ์', text:'ต้องการข้อมูล เพศ, น้ำหนัก, ส่วนสูง, อายุ ครบถ้วน เพื่อคำนวณโภชนาการแบบละเอียดครับ', icon:'warning', customClass: { popup: 'rounded-3xl' }}); 
+            } 
+            Swal.fire({ 
+                title: '🍱 AI วิเคราะห์โภชนาการ', 
+                html: `<div class="text-left text-sm mt-1 bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm"><p class="mb-3 text-lg text-center font-medium text-slate-700">🔥 เป้าหมายโภชนาการประจำตัว:<br><span class="text-orange-500 font-black text-3xl">${nut.kcal}</span> <span class="text-xs">kcal/วัน</span></p><div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm mt-3 space-y-3"><p class="text-rose-500 font-bold flex justify-between items-center"><span class="flex items-center gap-2"><i class="fa-solid fa-drumstick-bite bg-rose-100 p-1.5 rounded text-xs"></i> โปรตีน</span> <span class="text-base">${nut.protein} g</span></p><p class="text-amber-500 font-bold flex justify-between items-center"><span class="flex items-center gap-2"><i class="fa-solid fa-bowl-rice bg-amber-100 p-1.5 rounded text-xs"></i> คาร์โบไฮเดรต</span> <span class="text-base">${nut.carbs} g</span></p><p class="text-blue-500 font-bold flex justify-between items-center"><span class="flex items-center gap-2"><i class="fa-solid fa-droplet bg-blue-100 p-1.5 rounded text-xs"></i> ไขมันดี</span> <span class="text-base">${nut.fat} g</span></p></div></div>`, 
+                icon: 'info', 
+                confirmButtonColor: '#4f46e5', 
+                customClass: { popup: 'rounded-[2rem]' }
+            }); 
+        }
+
+        async function explainExerciseAI(exerciseName) {
+            let apiKey = localStorage.getItem('geminiApiKey'); 
+            if (!apiKey) return Swal.fire('ต้องใช้ API Key', 'กรุณากดปุ่ม "AI จัดให้" ด้านบนเพื่อเชื่อมต่อ API Key ครั้งแรกก่อนครับ', 'warning');
+
+            Swal.fire({ 
+                title: `กำลังวิเคราะห์ท่า ${exerciseName}...`, 
+                allowOutsideClick: false, 
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            try {
+                const prompt = `Explain the fitness exercise "${exerciseName}" in Thai for a client. Use exactly this HTML structure, replacing the bracketed text with your expert advice. Keep it motivational and easy to understand.
+                <div class="text-left text-sm space-y-3">
+                    <div class="bg-blue-50 p-3 rounded-xl border border-blue-100"><p class="text-blue-800 font-bold mb-1"><i class="fa-solid fa-person-running"></i> วิธีเล่น (How to):</p><p class="text-slate-700">[1-2 sentences on proper form]</p></div>
+                    <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100"><p class="text-indigo-800 font-bold mb-1"><i class="fa-solid fa-bullseye"></i> จุดโฟกัส (Focus):</p><p class="text-slate-700">[Where to feel the muscle]</p></div>
+                    <div class="bg-rose-50 p-3 rounded-xl border border-rose-100"><p class="text-rose-800 font-bold mb-1"><i class="fa-solid fa-triangle-exclamation"></i> จุดเสี่ยง (Risks):</p><p class="text-slate-700">[What to avoid to prevent injury]</p></div>
+                    <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100"><p class="text-emerald-800 font-bold mb-1"><i class="fa-solid fa-dumbbell"></i> กล้ามเนื้อที่ได้ทำงาน:</p><p class="text-slate-700">[Which muscles are working, and how it helps the body to motivate them]</p></div>
+                </div>`;
+                
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, { 
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({ contents: [{ parts: [{text: prompt}] }] }) 
+                }); 
+                const data = await response.json(); 
+                let htmlContent = data.candidates[0].content.parts[0].text; 
+                htmlContent = htmlContent.replace(/```html/g, '').replace(/```/g, '').trim(); 
+                
+                let displayHtml = `
+                    <div id="exerciseCaptureArea" class="bg-white p-5 rounded-[1.5rem] text-left border border-slate-100 shadow-sm relative">
+                        <h3 class="text-lg font-black text-slate-800 text-center mb-4 pb-3 border-b border-slate-100"><i class="fa-solid fa-dumbbell text-indigo-500 mr-2"></i> ${exerciseName}</h3>
+                        ${htmlContent}
+                    </div>
+                    <button id="btnCaptureEx" onclick="captureExerciseInfo('${exerciseName.replace(/'/g, "\\'")}')" class="mt-5 w-full bg-gradient-to-r from-indigo-500 to-blue-600 text-white font-bold py-3.5 rounded-2xl shadow-md hover:from-indigo-600 hover:to-blue-700 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-camera text-lg"></i> บันทึกภาพคำแนะนำ (Save Image)
+                    </button>
+                `;
+                
+                Swal.fire({
+                    html: displayHtml,
+                    showConfirmButton: false,
+                    showCloseButton: true,
+                    customClass: { popup: 'rounded-[2rem] bg-slate-50' }
+                });
+
+            } catch(e) {
+                Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อ AI ได้ กรุณาตรวจสอบเน็ตหรือ API Key', 'error');
+            }
+        }
+
+        function captureExerciseInfo(exerciseName) {
+            const area = document.getElementById('exerciseCaptureArea');
+            const btn = document.getElementById('btnCaptureEx');
+            if (!area) return;
+            
+            if(btn) {
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-lg"></i> กำลังบันทึกภาพ...';
+                btn.classList.add('opacity-50', 'pointer-events-none');
+            }
+
+            setTimeout(() => {
+                html2canvas(area, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
+                    const imageLink = canvas.toDataURL("image/png");
+                    const createDownload = document.createElement('a');
+                    createDownload.href = imageLink;
+                    const safeName = exerciseName.replace(/[^a-z0-9\u0E00-\u0E7F]/gi, '_').toLowerCase();
+                    createDownload.download = `Exercise_Guide_${safeName}.png`;
+                    document.body.appendChild(createDownload);
+                    createDownload.click();
+                    document.body.removeChild(createDownload);
+                    
+                    Swal.fire({ 
+                        title: 'บันทึกภาพสำเร็จ!', 
+                        text: 'เซฟรูปคำแนะนำลงเครื่องแล้ว สามารถส่งแชร์ให้ลูกเทรนได้เลย', 
+                        icon: 'success', 
+                        timer: 2000, 
+                        showConfirmButton: false, 
+                        customClass: { popup: 'rounded-3xl' } 
+                    });
+                }).catch(err => {
+                    console.error("Canvas Error: ", err);
+                    Swal.fire('ข้อผิดพลาด', 'ไม่สามารถบันทึกภาพได้ กรุณาลองใหม่', 'error');
+                });
+            }, 300);
+        }
+
+        async function generateWorkoutAI() { 
+            let apiKey = localStorage.getItem('geminiApiKey'); 
+            if (!apiKey) { 
+                const { value: key } = await Swal.fire({ 
+                    title: '🔑 เชื่อมต่อระบบ AI', 
+                    input: 'text', 
+                    html: 'ระบบต้องการ <b>Google Gemini API Key</b> เพื่อประมวลผลจัดตารางซ้อม<br><a href="https://aistudio.google.com/" target="_blank" class="text-indigo-500 underline text-xs font-bold mt-2 inline-block">คลิกขอรับ Key ฟรีที่นี่</a>', 
+                    inputPlaceholder: 'วาง API Key ของคุณที่นี่...', 
+                    showCancelButton: true, 
+                    confirmButtonText: 'บันทึก', 
+                    cancelButtonText: 'ยกเลิก',
+                    customClass: { popup: 'rounded-3xl' }
+                }); 
+                if (key) { localStorage.setItem('geminiApiKey', key); apiKey = key; } else { return; } 
+            } 
+            
+            const checkedEqs = Array.from(document.querySelectorAll('.eq-chk:checked')).map(cb => cb.value);
+            const eqPromptText = checkedEqs.length > 0 ? checkedEqs.join(', ') : "Bodyweight Only";
+
+            const { value: formValues, isDismissed } = await Swal.fire({ 
+                title: '🎯 ส่วนที่ต้องการเน้นซ้อมวันนี้', 
+                html: `<div class="text-left"><div class="grid grid-cols-2 gap-2 text-sm mb-5"><label class="flex items-center gap-2 p-3 border rounded-xl bg-white"><input type="checkbox" value="อก" class="focus-chk w-4 h-4 accent-indigo-600"> 💪 อก</label><label class="flex items-center gap-2 p-3 border rounded-xl bg-white"><input type="checkbox" value="หลัง" class="focus-chk w-4 h-4 accent-indigo-600"> 🦅 หลัง</label><label class="flex items-center gap-2 p-3 border rounded-xl bg-white"><input type="checkbox" value="ขา" class="focus-chk w-4 h-4 accent-indigo-600"> 🦵 ขา</label><label class="flex items-center gap-2 p-3 border rounded-xl bg-white"><input type="checkbox" value="ไหล่" class="focus-chk w-4 h-4 accent-indigo-600"> 🥥 ไหล่</label><label class="flex items-center gap-2 p-3 border rounded-xl bg-white"><input type="checkbox" value="แขน" class="focus-chk w-4 h-4 accent-indigo-600"> 🔥 แขน</label><label class="flex items-center gap-2 p-3 border rounded-xl bg-white"><input type="checkbox" value="ท้อง" class="focus-chk w-4 h-4 accent-indigo-600"> 🍫 ท้อง</label><label class="flex items-center gap-2 p-3 border rounded-xl bg-white"><input type="checkbox" value="คาร์ดิโอ" class="focus-chk w-4 h-4 accent-indigo-600"> 🏃‍♂️ คาร์ดิโอ</label><label class="flex items-center gap-2 p-3 border rounded-xl bg-white"><input type="checkbox" value="Full Body" class="focus-chk w-4 h-4 accent-indigo-600"> 🌟 Full</label></div><div class="border-t pt-4 text-center"><p class="text-xs font-bold text-slate-500 mb-2">จัดทั้งหมดกี่ท่าฝึก?</p><div class="flex items-center justify-center gap-4"><button type="button" onclick="document.getElementById('aiExCount').value = Math.max(1, parseInt(document.getElementById('aiExCount').value) - 1)" class="bg-slate-100 w-10 h-10 rounded-full font-black text-xl"><i class="fa-solid fa-minus"></i></button><input type="number" id="aiExCount" value="4" min="1" max="15" class="w-12 text-center text-2xl font-black text-indigo-600 focus:outline-none" readonly><button type="button" onclick="document.getElementById('aiExCount').value = Math.min(15, parseInt(document.getElementById('aiExCount').value) + 1)" class="bg-slate-100 w-10 h-10 rounded-full font-black text-xl"><i class="fa-solid fa-plus"></i></button></div></div></div>`, 
+                showCancelButton: true, 
+                confirmButtonColor: '#8b5cf6', 
+                confirmButtonText: '✨ ให้ AI จัดตารางเลย', 
+                customClass: { popup: 'rounded-[2rem]' },
+                preConfirm: () => { 
+                    const checkboxes = document.querySelectorAll('.focus-chk:checked'); 
+                    const focuses = Array.from(checkboxes).map(cb => cb.value); 
+                    const count = document.getElementById('aiExCount').value; 
+                    return { focuses, count }; 
+                } 
+            }); 
+            
+            if (isDismissed) return; 
+            const focusText = (formValues.focuses && formValues.focuses.length > 0) ? formValues.focuses.join(' และ ') : "General Full Body Balance"; 
+            const exCount = formValues.count || 4; 
+            const client = clients[currentActiveClientIndex]; 
+            
+            Swal.fire({ 
+                title: '🤖 AI กำลังประมวลผลตารางฝึก...', 
+                allowOutsideClick: false, 
+                customClass: { popup: 'rounded-3xl' },
+                didOpen: () => { Swal.showLoading(); }
+            }); 
+            
+            try { 
+                const prompt = `You are an expert fitness trainer. Create a ${exCount}-exercise workout plan for today. Client details: Gender ${client.gender || 'Not specified'}, Age ${client.age}, Weight ${client.weight}kg, Goal: ${client.goal}, Health conditions: ${client.health || 'None'}. TODAY'S FOCUS: ${focusText}. AVAILABLE GYM EQUIPMENT: ${eqPromptText}. CRITICAL HEALTH & EQUIPMENT INSTRUCTION: If Health conditions is NOT 'None', YOU MUST adapt the routine (e.g. use lighter weights or bodyweight 0kg). YOU MUST EXCLUSIVELY SELECT EXERCISES THAT USE ONLY THE AVAILABLE EQUIPMENT LISTED. Do not suggest barbell exercises if Barbell is not listed. Return ONLY a valid JSON array containing EXACTLY ${exCount} objects without any markdown blocks. Each object must have keys: name (string exercise name), category (string must be EXACTLY one of: chest, back, legs, shoulders, arms, core, cardio, custom), sets (number between 3 to 4), targetReps (string e.g. "10-12"), targetWeight (number estimated starting weight in kg. MUST be a multiple of 5).`; 
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, { 
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({ contents: [{ parts: [{text: prompt}] }] }) 
+                }); 
+                const data = await response.json(); 
+                if(data.error) throw new Error(data.error.message); 
+                
+                let rawText = data.candidates[0].content.parts[0].text; 
+                rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim(); 
+                const aiWorkout = JSON.parse(rawText); 
+                
+                currentWorkoutPlan = aiWorkout.map(ex => ({ 
+                    name: ex.name, category: ex.category || 'custom', sets: ex.sets || 3, targetReps: ex.targetReps || "10", targetWeight: ex.targetWeight || 0, status: 'played' 
+                })); 
+                renderWorkoutList(); 
+                Swal.fire({title: 'สำเร็จ!', text: `✨ จัดตารางซ้อมให้เรียบร้อยแล้ว`, icon: 'success', confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' }}); 
+            } catch (e) { 
+                if(e.message && e.message.includes('API key')) localStorage.removeItem('geminiApiKey'); 
+                Swal.fire({title:'เกิดข้อผิดพลาด', icon:'error', customClass: { popup: 'rounded-3xl' }}); 
+            } 
+        }
+
+        // ======== 9. Exercises List & Equipment ========
+        const exerciseDatabase = {
+            chest: [{name: "Barbell Bench Press", eq: "Barbell"}, {name: "Dumbbell Bench Press", eq: "Dumbbell"}, {name: "Incline Barbell Press", eq: "Barbell"}, {name: "Incline Dumbbell Press", eq: "Dumbbell"}, {name: "Decline Press", eq: "Barbell"}, {name: "Pec Deck Fly", eq: "Pec Deck Fly Machine"}, {name: "Chest Press Machine", eq: "Chest Press Machine"}, {name: "Cable Crossover", eq: "Cable"}, {name: "Push-up", eq: "Bodyweight"}, {name: "Chest Dip", eq: "Bodyweight"}, {name: "Dumbbell Pullover", eq: "Dumbbell"}, {name: "Smith Machine Bench Press", eq: "Smith Machine"}],
+            back: [{name: "Lat Pulldown", eq: "Lat Pulldown Machine"}, {name: "Barbell Row", eq: "Barbell"}, {name: "Single-arm Dumbbell Row", eq: "Dumbbell"}, {name: "Seated Cable Row", eq: "Cable"}, {name: "Seated Row Machine", eq: "Seated Row Machine"}, {name: "Pull-up / Chin-up", eq: "Bodyweight"}, {name: "Deadlift", eq: "Barbell"}, {name: "T-Bar Row", eq: "T-Bar Row Machine"}, {name: "Face Pull", eq: "Cable"}, {name: "Straight-arm Pulldown", eq: "Cable"}],
+            legs: [{name: "Barbell Squat", eq: "Barbell"}, {name: "Smith Machine Squat", eq: "Smith Machine"}, {name: "Goblet Squat", eq: "Dumbbell"}, {name: "Hack Squat", eq: "Hack Squat Machine"}, {name: "Leg Press", eq: "Leg Press Machine"}, {name: "Lunges", eq: "Dumbbell"}, {name: "Bulgarian Split Squat", eq: "Dumbbell"}, {name: "Romanian Deadlift (RDL)", eq: "Barbell"}, {name: "Leg Extension", eq: "Leg Extension Machine"}, {name: "Seated Leg Curl", eq: "Seated Leg Curl Machine"}, {name: "Seated Hip Abductor", eq: "Seated Hip Abductor"}, {name: "Hip Thrust (Barbell)", eq: "Barbell"}, {name: "Hip Thrust Machine", eq: "Hip Thrust Machine"}, {name: "Calf Raise", eq: "Calf Raise Machine"}],
+            shoulders: [{name: "Overhead Press (Barbell)", eq: "Barbell"}, {name: "Smith Machine Overhead Press", eq: "Smith Machine"}, {name: "Dumbbell Shoulder Press", eq: "Dumbbell"}, {name: "Shoulder Press Machine", eq: "Shoulder Press Machine"}, {name: "Arnold Press", eq: "Dumbbell"}, {name: "Lateral Raise", eq: "Dumbbell"}, {name: "Front Raise", eq: "Dumbbell"}, {name: "Reverse Pec Deck", eq: "Pec Deck Fly Machine"}, {name: "Upright Row", eq: "Barbell"}, {name: "Shrugs", eq: "Dumbbell"}],
+            arms: [{name: "Barbell Bicep Curl", eq: "Barbell"}, {name: "Dumbbell Bicep Curl", eq: "Dumbbell"}, {name: "Hammer Curl", eq: "Dumbbell"}, {name: "Preacher Curl Machine", eq: "Preacher Curl Machine"}, {name: "Cable Curl", eq: "Cable"}, {name: "Tricep Pushdown", eq: "Cable"}, {name: "Overhead Tricep Extension", eq: "Dumbbell"}, {name: "Skull Crushers", eq: "Barbell"}, {name: "Tricep Kickback", eq: "Dumbbell"}, {name: "Tricep Dip", eq: "Bodyweight"}],
+            core: [{name: "Crunch", eq: "Bodyweight"}, {name: "Sit-up", eq: "Bodyweight"}, {name: "Plank", eq: "Bodyweight"}, {name: "Hanging Leg Raise", eq: "Bodyweight"}, {name: "Russian Twist", eq: "Dumbbell"}, {name: "Cable Woodchopper", eq: "Cable"}, {name: "Ab Wheel Rollout", eq: "Bodyweight"}],
+            cardio: [{name: "Treadmill", eq: "Treadmill"}, {name: "Cycling", eq: "Cycling Machine"}, {name: "Elliptical", eq: "Elliptical"}, {name: "Rowing Machine", eq: "Rowing Machine"}, {name: "Stair Master", eq: "Stair Master"}, {name: "Burpees", eq: "Bodyweight"}, {name: "Kettlebell Swing", eq: "Kettlebell"}]
+        };
+
+        function findCategoryByExerciseName(exerciseName) { 
+            for (const [category, exercises] of Object.entries(exerciseDatabase)) { 
+                const match = exercises.find(ex => ex.name === exerciseName);
+                if (match) return category; 
+            } 
+            return 'อื่นๆ'; 
+        }
+
+        function normalizeCategory(catStr) { 
+            if (!catStr) return 'อื่นๆ'; 
+            let s = catStr.toString().toLowerCase().trim(); 
+            if (s.includes('อก') || s.includes('chest')) return 'อก'; 
+            if (s.includes('หลัง') || s.includes('back')) return 'หลัง'; 
+            if (s.includes('ขา') || s.includes('leg')) return 'ขา'; 
+            if (s.includes('ไหล่') || s.includes('shoulder')) return 'ไหล่'; 
+            if (s.includes('แขน') || s.includes('arm')) return 'แขน'; 
+            if (s.includes('ท้อง') || s.includes('core') || s.includes('ab')) return 'ท้อง'; 
+            if (s.includes('คาร์ดิโอ') || s.includes('cardio') || s.includes('run')) return 'คาร์ดิโอ'; 
+            return 'อื่นๆ'; 
+        }
+
+        function toggleGoalTarget() { 
+            const goalType = document.getElementById('clientGoalType').value; 
+            const container = document.getElementById('goalTargetContainer'); 
+            if(goalType === 'ลดน้ำหนัก' || goalType === 'เพิ่มน้ำหนัก') { 
+                container.classList.remove('hidden'); 
+            } else { 
+                container.classList.add('hidden'); 
+                document.getElementById('clientGoalTarget').value = ''; 
+            } 
+        }
+
+        function checkAllEquipment(status) {
+            const checkboxes = document.querySelectorAll('.eq-chk');
+            checkboxes.forEach(cb => cb.checked = status);
+            updateExerciseList();
+        }
+
+        function updateExerciseList() { 
+            const category = document.getElementById('exCategory').value; 
+            const exNameSelect = document.getElementById('exName'); 
+            exNameSelect.innerHTML = '<option value="" disabled selected>-- เลือกท่า --</option>'; 
+            exNameSelect.disabled = false; 
+            exNameSelect.classList.remove('bg-slate-100', 'opacity-50'); 
+            exNameSelect.classList.add('bg-slate-50'); 
+
+            const checkedEqs = Array.from(document.querySelectorAll('.eq-chk:checked')).map(cb => cb.value);
+
+            if (category === 'custom') { 
+                exNameSelect.innerHTML += `<option value="custom" selected>อื่นๆ (พิมพ์ระบุเอง)...</option>`; 
+                exNameSelect.disabled = true; 
+                exNameSelect.classList.add('bg-slate-100', 'opacity-50'); 
+                checkCustomExercise(); 
+            } else if (exerciseDatabase[category]) { 
+                exerciseDatabase[category].forEach(ex => { 
+                    if(checkedEqs.includes(ex.eq) || checkedEqs.length === 0) {
+                        exNameSelect.innerHTML += `<option value="${ex.name}">${ex.name}</option>`; 
+                    }
+                }); 
+                exNameSelect.innerHTML += `<option value="custom">อื่นๆ (พิมพ์เอง)...</option>`; 
+                checkCustomExercise(); 
+            } 
+        }
+
+        function checkCustomExercise() { const selectBox = document.getElementById('exName'); const customBox = document.getElementById('exCustomName'); if (selectBox.value === 'custom') { customBox.classList.remove('hidden'); customBox.focus(); } else { customBox.classList.add('hidden'); customBox.value = ''; } }
+        
+        function openWorkoutSection() { currentWorkoutPlan = []; document.getElementById('sessionCurrentWeight').value = ""; document.getElementById('exCategory').value = ""; document.getElementById('exName').innerHTML = '<option value="" disabled selected>-- เลือกท่า --</option>'; document.getElementById('exName').disabled = true; document.getElementById('exName').classList.add('bg-slate-100', 'opacity-50'); checkCustomExercise(); renderWorkoutList(); }
+        
+        function addExercise() { 
+            const category = document.getElementById('exCategory').value; let name = document.getElementById('exName').value; const customName = document.getElementById('exCustomName').value; 
+            if (!category) return Swal.fire({title:'ผิดพลาด', text:'เลือกหมวดหมู่กล้ามเนื้อ', icon:'warning', customClass: { popup: 'rounded-3xl' }}); 
+            if (!name) return Swal.fire({title:'ผิดพลาด', text:'เลือกชื่อท่าซ้อม', icon:'warning', customClass: { popup: 'rounded-3xl' }}); 
+            if (name === 'custom') { if(!customName) return Swal.fire({title:'ผิดพลาด', text:'พิมพ์ชื่อท่าสรีระที่ต้องการก่อนครับ', icon:'warning', customClass: { popup: 'rounded-3xl' }}); name = customName; } 
+            const sets = document.getElementById('exSets').value; const reps = document.getElementById('exReps').value; const weight = document.getElementById('exWeight').value; 
+            currentWorkoutPlan.push({ name, category: category || findCategoryByExerciseName(name), sets: sets||"-", targetReps: reps||"-", targetWeight: weight||"-", status: "played" }); 
+            renderWorkoutList(); document.getElementById('exName').value = ""; checkCustomExercise(); document.getElementById('exSets').value = ""; document.getElementById('exReps').value = ""; document.getElementById('exWeight').value = ""; 
+        }
+
+        function renderWorkoutList() { 
+            const listContainer = document.getElementById('currentWorkoutList'); listContainer.innerHTML = ''; 
+            if (currentWorkoutPlan.length === 0) { listContainer.innerHTML = '<div class="bg-slate-50 border border-slate-100 rounded-2xl p-6 text-center"><i class="fa-solid fa-clipboard-list text-3xl text-slate-300 mb-2"></i><p class="text-slate-400 text-xs font-bold">ตารางซ้อมวันนี้ว่างอยู่ ให้เพิ่มท่าหรือกด AI จัดตารางให้ด้านบนได้เลยครับ</p></div>'; return; } 
+            currentWorkoutPlan.forEach((ex, idx) => { listContainer.innerHTML += `<div class="border border-slate-100 rounded-2xl p-4 bg-white shadow-sm flex justify-between items-center gap-3"><div class="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 font-black flex items-center justify-center shrink-0 text-sm">${idx + 1}</div><div class="truncate flex-1"><h4 class="font-black text-slate-800 text-sm truncate mb-1">${ex.name}</h4><div class="flex gap-2"><span class="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded">เซ็ต: ${ex.sets}</span><span class="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded">เป้า: ${ex.targetReps}</span><span class="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded">นน: ${ex.targetWeight} kg</span></div></div><button onclick="currentWorkoutPlan.splice(${idx},1); renderWorkoutList()" class="w-10 h-10 rounded-xl text-rose-500 bg-rose-50 hover:bg-rose-100 flex items-center justify-center transition shrink-0"><i class="fa-solid fa-xmark"></i></button></div>`; }); 
+        }
+
+        async function processSaveSession() { 
+            const client = clients[currentActiveClientIndex]; const weightInput = document.getElementById('sessionCurrentWeight').value; const todayWeight = weightInput ? parseFloat(weightInput) : (client.workoutHistory.length > 0 ? client.workoutHistory[client.workoutHistory.length - 1].currentWeight : client.weight); 
+            const sessionData = { date: new Date().toLocaleDateString('th-TH'), time: new Date().toLocaleTimeString('th-TH'), workout: currentWorkoutPlan, currentWeight: todayWeight, signature: null }; 
+            if (!client.workoutHistory) client.workoutHistory = []; client.workoutHistory.push(sessionData); client.usedSessions = (client.usedSessions || 0) + 1; 
+            clients[currentActiveClientIndex] = client; 
+            const success = await saveClientsToCloud();
+            if(success) {
+                Swal.fire({ title: 'บันทึกสำเร็จ!', text: 'ระบบหักคอร์สการเรียนเรียบร้อย', icon: 'success', timer: 2000, showConfirmButton: false, customClass: { popup: 'rounded-3xl' } }); 
+                showHomeView(); 
+            }
+        }
+
+        function completeSession() { 
+            if (currentWorkoutPlan.length === 0) { 
+                Swal.fire({ title: 'ตารางฝึกว่างเปล่า!', text: "ยังไม่ได้ระบุรายละเอียดท่าฝึก ยืนยันบันทึกคลาสหรือไม่?", icon: 'question', showCancelButton: true, confirmButtonColor: '#10B981', cancelButtonColor: '#9CA3AF', confirmButtonText: 'ยืนยัน', customClass: { popup: 'rounded-3xl' } }).then((result) => { if (result.isConfirmed) processSaveSession(); }); 
+            } else { processSaveSession(); } 
+        }
+
+        // ======== 10. Dashboard & Client Rendering ========
+        function renderClients() {
+            const listContainer = document.getElementById('clientList'); 
+            const paginationContainer = document.getElementById('paginationControls');
+            
+            if (listContainer) listContainer.innerHTML = ''; 
+            if (paginationContainer) paginationContainer.innerHTML = '';
+            
+            updateDashboardDropdown();
+            
+            const searchBar = document.getElementById('searchBar');
+            const searchVal = searchBar ? searchBar.value.toLowerCase().trim() : '';
+            
+            let mappedClients = clients.map((c, index) => ({ ...c, originalIndex: index }));
+            let filtered = mappedClients.filter(c => c.name.toLowerCase().includes(searchVal));
+            
+            if(currentFilterMode === 'expired') {
+                filtered = filtered.filter(c => (c.usedSessions >= c.totalSessions && c.totalSessions > 0));
+            } else if (currentFilterMode === 'active') {
+                filtered = filtered.filter(c => c.workoutHistory && c.workoutHistory.length > 0);
+            }
+            
+            const countText = document.getElementById('clientCountText');
+            if (countText) countText.innerText = `(${filtered.length})`;
+            
+            const scheduleBox = document.getElementById('today-schedule-box');
+            const scheduleContainer = document.getElementById('todayScheduleContainer');
+            if (scheduleContainer) scheduleContainer.innerHTML = '';
+            let hasTodayClasses = false;
+
+            const totalPages = Math.ceil(filtered.length / clientsPerPage);
+            if(currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+            if(currentPage < 1) currentPage = 1;
+            
+            const paginatedClients = filtered.slice((currentPage - 1) * clientsPerPage, currentPage * clientsPerPage);
+
+            paginatedClients.forEach((client) => {
+                const index = client.originalIndex; 
+                const usedSessions = client.usedSessions || 0; 
+                const totalSessions = client.totalSessions || 0;
+                let currentWeight = parseFloat(client.weight) || 0;
+                let lastActiveText = "ยังไม่มีประวัติการซ้อม";
+                
+                if (client.workoutHistory && client.workoutHistory.length > 0) { 
+                    const lastSession = client.workoutHistory[client.workoutHistory.length - 1];
+                    currentWeight = parseFloat(lastSession.currentWeight) || currentWeight; 
+                    lastActiveText = `ซ้อมล่าสุด: ${lastSession.date}`;
+                    if(lastSession.date === new Date().toLocaleDateString('th-TH')) {
+                        hasTodayClasses = true;
+                        if(scheduleContainer) scheduleContainer.innerHTML += `<div class="p-2.5 bg-slate-50 rounded-xl flex justify-between items-center border border-slate-100 text-xs font-medium"><span>👤 คลาสของ <b>${client.name}</b> (${lastActiveText})</span> <span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">✅ เช็คอินแล้ว</span></div>`;
+                    }
+                }
+
+                let heightM = (parseFloat(client.height) || 0) / 100; let bmiBadge = "";
+                if(currentWeight > 0 && heightM > 0) { 
+                    let bmi = (currentWeight / (heightM * heightM)).toFixed(1); let bmiText = ""; let bmiClass = ""; 
+                    if(bmi < 18.5) { bmiText = "ผอม"; bmiClass = "bg-blue-50 text-blue-600"; } 
+                    else if(bmi < 23) { bmiText = "ปกติ"; bmiClass = "bg-emerald-50 text-emerald-600"; } 
+                    else if(bmi < 25) { bmiText = "ท้วม"; bmiClass = "bg-yellow-50 text-yellow-600"; } 
+                    else if(bmi < 30) { bmiText = "อ้วน"; bmiClass = "bg-orange-50 text-orange-600"; } 
+                    else { bmiText = "อ้วนมาก"; bmiClass = "bg-rose-50 text-rose-600"; }
+                    bmiBadge = `<span class="text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-100 shadow-sm ${bmiClass}">BMI: ${bmi} (${bmiText})</span>`; 
+                }
+
+                let courseStatusHtml = '';
+                let renewButtonHtml = `<button onclick="event.stopPropagation(); renewClient(${index})" class="w-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-bold py-2 rounded-xl text-xs transition border border-emerald-200/50 flex items-center justify-center gap-1"><i class="fa-solid fa-arrows-rotate"></i> ต่ออายุแพ็กเกจคลาส</button>`;
+                
+                if (usedSessions >= totalSessions && totalSessions > 0) {
+                    courseStatusHtml = `<div class="bg-rose-50 p-2.5 rounded-xl mt-3 flex justify-between items-center border border-rose-100"><span class="font-bold text-rose-500 text-xs"><i class="fa-solid fa-triangle-exclamation"></i> คอร์สหมดอายุแพ็กเกจ</span></div>`;
+                } else {
+                    let pct = totalSessions > 0 ? Math.min(Math.round((usedSessions/totalSessions)*100), 100) : 0;
+                    courseStatusHtml = `<div class="mt-3"><div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1"><span>ความคืบหน้าคอร์ส</span><span class="text-indigo-600">${usedSessions} / ${totalSessions} ครั้ง</span></div><div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden"><div class="bg-indigo-500 h-full rounded-full" style="width: ${pct}%"></div></div></div>`;
+                }
+
+                if(listContainer) {
+                    listContainer.innerHTML += `
+                        <div class="bg-white p-5 rounded-[2rem] shadow-[0_4px_20px_rgb(0,0,0,0.02)] border border-slate-100 flex flex-col justify-between relative overflow-hidden ui-card cursor-pointer" onclick="openClientSpacePage(${index})">
+                            <div class="relative z-10">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center gap-2.5 truncate">
+                                        <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center text-lg shrink-0 border-2 border-white shadow-sm"><i class="fa-solid ${client.gender === 'หญิง' ? 'fa-person-dress' : 'fa-person'}"></i></div>
+                                        <div class="truncate"><h3 class="text-base font-black text-slate-800 leading-tight truncate">${client.name}</h3><span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">${lastActiveText}</span></div>
+                                    </div>
+                                    <div class="flex gap-1 shrink-0">
+                                        <button onclick="event.stopPropagation(); editClient(${index})" class="w-7 h-7 rounded-full bg-slate-50 text-slate-400 hover:text-blue-500 flex items-center justify-center border border-slate-100"><i class="fa-solid fa-pen text-[9px]"></i></button>
+                                        <button onclick="event.stopPropagation(); deleteClient(${index})" class="w-7 h-7 rounded-full bg-rose-50 text-rose-400 hover:text-rose-600 flex items-center justify-center border border-rose-100"><i class="fa-solid fa-trash text-[9px]"></i></button>
+                                    </div>
+                                </div>
+                                ${bmiBadge}
+                                
+                                <div class="mt-3 bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                                    <div class="flex justify-between text-xs font-semibold text-slate-600 mb-1"><span class="truncate"><i class="fa-solid fa-bullseye text-orange-400 mr-1"></i> ${client.goal}</span><span class="shrink-0 text-slate-500">ล่าสุด: <b>${currentWeight}</b> kg</span></div>
+                                    ${courseStatusHtml}
+                                </div>
+                            </div>
+                            <div class="mt-4 flex flex-col gap-2 relative z-10">
+                                ${renewButtonHtml}
+                                <span class="text-[10px] text-indigo-500 font-bold flex items-center justify-center gap-1 bg-indigo-50/50 py-1.5 rounded-xl border border-indigo-100/50"><i class="fa-regular fa-hand-pointer"></i> แตะเพื่อเปิดเข้าห้องล็อกประวัติซ้อมส่วนตัว</span>
+                            </div>
+                        </div>`;
+                }
+            });
+            
+            if(totalPages > 1 && paginationContainer) {
+                let prevDisabled = currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-100 hover:text-indigo-600';
+                let nextDisabled = currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-100 hover:text-indigo-600';
+                
+                paginationContainer.innerHTML = `
+                    <button onclick="changePage(${currentPage - 1})" class="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 font-bold shadow-sm transition ${prevDisabled}" ${currentPage === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>
+                    <span class="text-sm font-bold text-slate-600 px-4 py-2 bg-slate-100 rounded-xl">หน้า ${currentPage} / ${totalPages}</span>
+                    <button onclick="changePage(${currentPage + 1})" class="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 font-bold shadow-sm transition ${nextDisabled}" ${currentPage === totalPages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button>
+                `;
+            }
+
+            if(scheduleBox) {
+                if(hasTodayClasses) { scheduleBox.classList.remove('hidden'); } else { scheduleBox.classList.add('hidden'); }
+            }
+            if (document.getElementById('view-home') && !document.getElementById('view-home').classList.contains('hidden')) { 
+                calculateTrainerGlobalPortfolio(document.getElementById('dashboardFilter') ? document.getElementById('dashboardFilter').value : 'all'); 
+            }
+        }
+
+        function updateDashboardDropdown() { 
+            const select = document.getElementById('dashboardFilter'); 
+            if(!select) return;
+            const currentVal = select.value; 
+            let html = '<option value="all">🌍 ภาพรวมทั้งทีม (Team)</option>'; 
+            clients.forEach((c, idx) => { html += `<option value="${idx}">👤 ข้อมูลของ: ${c.name}</option>`; }); 
+            select.innerHTML = html; 
+            if(currentVal && currentVal !== 'all' && parseInt(currentVal) < clients.length) { select.value = currentVal; } else { select.value = 'all'; } 
+        }
+
+        function calculateTrainerGlobalPortfolio(filterIndex = 'all') {
+            let globalSessionsCount = 0; let globalWeightLossSum = 0; let globalTotalExercises = 0; let globalPlayedExercises = 0;
+            let globalExpertiseCounts = { 'อก': 0, 'หลัง': 0, 'ขา': 0, 'ไหล่': 0, 'แขน': 0, 'ท้อง': 0, 'คาร์ดิโอ': 0, 'อื่นๆ': 0 };
+            let topWeightLossRecord = 0; let topStrengthRecord = 0;
+            const isAll = (filterIndex === 'all'); const targetClients = isAll ? clients : [clients[parseInt(filterIndex)]];
+
+            targetClients.forEach(client => {
+                globalSessionsCount += (client.workoutHistory ? client.workoutHistory.length : 0);
+                if (client.workoutHistory && client.workoutHistory.length > 0) {
+                    const firstWeight = parseFloat(client.weight); const latestWeight = parseFloat(client.workoutHistory[client.workoutHistory.length - 1].currentWeight) || firstWeight;
+                    const diff = latestWeight - firstWeight;
+                    if (diff < 0) { let absDiff = Math.abs(diff); globalWeightLossSum += absDiff; if(absDiff > topWeightLossRecord) topWeightLossRecord = absDiff; }
+                    client.workoutHistory.forEach(session => {
+                        session.workout.forEach(ex => {
+                            globalTotalExercises++;
+                            if (ex.status !== 'skipped') {
+                                globalPlayedExercises++; 
+                                let setsCount = parseInt(ex.sets); if(isNaN(setsCount)) setsCount = 1;
+                                let rawCat = ex.category || findCategoryByExerciseName(ex.name); let cat = normalizeCategory(rawCat);
+                                globalExpertiseCounts[cat] = (globalExpertiseCounts[cat] || 0) + setsCount;
+                                const exW = parseFloat(ex.targetWeight); if(!isNaN(exW) && exW > topStrengthRecord) topStrengthRecord = exW;
+                            }
+                        });
+                    });
+                }
+            });
+
+            if (isAll) {
+                if(document.getElementById('dashTitle')) document.getElementById('dashTitle').innerText = "TEAM SUCCESS";
+                if(document.getElementById('lblBox1')) document.getElementById('lblBox1').innerText = "ลูกเทรนในดูแล"; 
+                if(document.getElementById('globalTotalClients')) document.getElementById('globalTotalClients').innerText = `${clients.length} คน`;
+                if(document.getElementById('lblBox2')) document.getElementById('lblBox2').innerText = "ชั่วโมงสอนสะสม"; 
+                if(document.getElementById('globalTotalSessions')) document.getElementById('globalTotalSessions').innerText = `${globalSessionsCount} คลาส`;
+                if(document.getElementById('lblBox3')) document.getElementById('lblBox3').innerText = "ไขมันเบิร์นรวม"; 
+                if(document.getElementById('globalWeightLoss')) document.getElementById('globalWeightLoss').innerText = `-${globalWeightLossSum.toFixed(1)} กก.`;
+                if(document.getElementById('lblBox4')) document.getElementById('lblBox4').innerText = "วินัยการซ้อมรวม"; 
+                let globalConsistencyPct = globalTotalExercises > 0 ? Math.round((globalPlayedExercises / globalTotalExercises) * 100) : 0; 
+                if(document.getElementById('globalConsistencyPct')) document.getElementById('globalConsistencyPct').innerText = `${globalConsistencyPct}%`;
+                if(document.getElementById('lblHofWeight')) document.getElementById('lblHofWeight').innerText = "สถิติน้ำหนักลดมากสุด"; 
+                if(document.getElementById('hofWeightLoss')) document.getElementById('hofWeightLoss').innerText = `-${topWeightLossRecord.toFixed(1)} กก.`;
+                if(document.getElementById('lblHofStrength')) document.getElementById('lblHofStrength').innerText = "แรงยกหนักสุด (PR ทีม)"; 
+                if(document.getElementById('hofStrength')) document.getElementById('hofStrength').innerText = `${topStrengthRecord} kg`;
+                if(document.getElementById('lblMission')) document.getElementById('lblMission').innerText = "ความสำเร็จเป้าหมายรวม";
+                let missionPct = Math.min(Math.round((globalWeightLossSum / 100) * 100), 100); 
+                if(document.getElementById('globalMissionText')) document.getElementById('globalMissionText').innerText = `${missionPct}%`; 
+                if(document.getElementById('globalMissionBar')) document.getElementById('globalMissionBar').style.width = `${missionPct}%`;
+            } else {
+                const c = targetClients[0];
+                if(document.getElementById('dashTitle')) document.getElementById('dashTitle').innerText = c.name;
+                if(document.getElementById('lblBox1')) document.getElementById('lblBox1').innerText = "คอร์สปัจจุบัน"; 
+                if(document.getElementById('globalTotalClients')) document.getElementById('globalTotalClients').innerText = `${c.totalSessions || 0} ครั้ง`;
+                if(document.getElementById('lblBox2')) document.getElementById('lblBox2').innerText = "เรียนไปแล้ว"; 
+                if(document.getElementById('globalTotalSessions')) document.getElementById('globalTotalSessions').innerText = `${globalSessionsCount} คลาส`;
+                if(document.getElementById('lblBox3')) document.getElementById('lblBox3').innerText = "น้ำหนักลดแล้ว"; 
+                if(document.getElementById('globalWeightLoss')) document.getElementById('globalWeightLoss').innerText = `-${globalWeightLossSum.toFixed(1)} กก.`;
+                if(document.getElementById('lblBox4')) document.getElementById('lblBox4').innerText = "วินัยสม่ำเสมอ"; 
+                let globalConsistencyPct = globalTotalExercises > 0 ? Math.round((globalPlayedExercises / globalTotalExercises) * 100) : 0; 
+                if(document.getElementById('globalConsistencyPct')) document.getElementById('globalConsistencyPct').innerText = `${globalConsistencyPct}%`;
+                if(document.getElementById('lblHofWeight')) document.getElementById('lblHofWeight').innerText = "น้ำหนักลดได้รวม"; 
+                if(document.getElementById('hofWeightLoss')) document.getElementById('hofWeightLoss').innerText = `-${globalWeightLossSum.toFixed(1)} กก.`;
+                if(document.getElementById('lblHofStrength')) document.getElementById('lblHofStrength').innerText = "สถิติแรงยก (PR)"; 
+                if(document.getElementById('hofStrength')) document.getElementById('hofStrength').innerText = `${topStrengthRecord} kg`;
+                if(document.getElementById('lblMission')) document.getElementById('lblMission').innerText = "ความคืบหน้าคอร์สเรียน";
+                let t = parseInt(c.totalSessions) || 1; let u = parseInt(c.usedSessions) || 0;
+                let missionPct = Math.min(Math.round((u / t) * 100), 100); 
+                if(document.getElementById('globalMissionText')) document.getElementById('globalMissionText').innerText = `${missionPct}%`; 
+                if(document.getElementById('globalMissionBar')) document.getElementById('globalMissionBar').style.width = `${missionPct}%`;
+            }
+            
+            // Fix Global Expertise Chart Scale & Layout
+            const radarCanvas = document.getElementById('globalExpertiseChart');
+            if(radarCanvas) {
+                if (myGlobalExpertiseChart) myGlobalExpertiseChart.destroy();
+                myGlobalExpertiseChart = new Chart(radarCanvas.getContext('2d'), { 
+                    type: 'radar', 
+                    data: { labels: ['💪 อก', '🦅 หลัง', '🦵 ขา', '🥥 ไหล่', '🔥 แขน', '🍫 ท้อง', '🏃‍♂️ คาร์ดิโอ'], datasets: [{ label: 'จำนวนเซ็ต', data: [globalExpertiseCounts['อก'], globalExpertiseCounts['หลัง'], globalExpertiseCounts['ขา'], globalExpertiseCounts['ไหล่'], globalExpertiseCounts['แขน'], globalExpertiseCounts['ท้อง'], globalExpertiseCounts['คาร์ดิโอ']], backgroundColor: 'rgba(99, 102, 241, 0.25)', borderColor: '#818cf8', pointBackgroundColor: '#a5b4fc', borderWidth: 2 }] }, 
+                    options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, grid: { color: 'rgba(255, 255, 255, 0.1)' }, angleLines: { color: 'rgba(255, 255, 255, 0.1)' }, pointLabels: { color: '#e2e8f0', font: { size: 9, weight: 'bold', family: 'Kanit' } }, ticks: { display: false } } }, plugins: { legend: { display: false } } } 
+                });
+            }
+        }
+
+        // ======== 11. History & Charts ========
+        function openHistorySection() { 
+            const client = clients[currentActiveClientIndex]; const selectEl = document.getElementById('historySessionSelect'); const container = document.getElementById('historyDetailContainer'); 
+            if (!client.workoutHistory || client.workoutHistory.length === 0) { 
+                selectEl.innerHTML = '<option disabled selected>ไม่มีบันทึกประวัติ</option>'; selectEl.disabled = true; container.innerHTML = '<div class="text-center py-12"><i class="fa-regular fa-folder-open text-4xl text-slate-300 mb-3 block"></i><p class="text-slate-400 text-xs font-bold">ยังไม่มีประวัติล็อกตารางสอนคอร์สรอบนี้</p></div>'; 
+            } else { 
+                selectEl.disabled = false; let optionsHtml = ''; 
+                for (let i = client.workoutHistory.length - 1; i >= 0; i--) { 
+                    const session = client.workoutHistory[i]; const signatureStatus = session.signature ? '✅ ลูกค้าลงชื่อแล้ว' : '⚠️ ยังไม่ลงลายมือชื่อ'; 
+                    optionsHtml += `<option value="${i}">ครั้งที่ ${i+1} | ${session.date} | ${signatureStatus}</option>`; 
+                } 
+                selectEl.innerHTML = optionsHtml; const latestIndex = client.workoutHistory.length - 1; selectEl.value = latestIndex; renderHistoryDetail(latestIndex); 
+            } 
+        }
+
+        function changeHistorySession() { renderHistoryDetail(document.getElementById('historySessionSelect').value); }
+        
+        function renderHistoryDetail(sessionIndex) { 
+            currentHistorySessionIndex = parseInt(sessionIndex); const client = clients[currentActiveClientIndex]; const session = client.workoutHistory[currentHistorySessionIndex]; const container = document.getElementById('historyDetailContainer'); 
+            let exercisesHtml = session.workout.map((ex, exIndex) => { 
+                if (session.signature) { 
+                    const isPlayed = ex.status !== 'skipped'; const icon = isPlayed ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-xmark"></i>'; const styleClass = isPlayed ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-rose-500 bg-rose-50 border-rose-200 line-through text-opacity-70'; 
+                    return `<li class="p-3 border border-slate-100 rounded-xl bg-white text-xs flex justify-between items-center shadow-sm"><div class="truncate"><strong class="block text-slate-800 truncate mb-0.5">${ex.name} <i onclick="explainExerciseAI('${ex.name}')" class="fa-solid fa-circle-info text-indigo-400 ml-1 cursor-pointer hover:text-indigo-600 transition" title="ข้อมูลท่าฝึก"></i></strong><span class="text-[10px] text-slate-400 font-bold">${ex.sets} เซ็ต | ${ex.targetReps} | ${ex.targetWeight} kg</span></div><div class="w-7 h-7 flex items-center justify-center rounded-lg border ${styleClass}">${icon}</div></li>`; 
+                } else { 
+                    const isPlayed = ex.status !== 'skipped'; 
+                    return `<li class="p-4 border border-slate-100 rounded-xl bg-white text-xs flex flex-col gap-3 shadow-sm"><div><strong class="block text-slate-800 text-sm mb-1">${ex.name} <i onclick="explainExerciseAI('${ex.name}')" class="fa-solid fa-circle-info text-indigo-400 ml-1 cursor-pointer hover:text-indigo-600 transition" title="ข้อมูลท่าฝึก"></i></strong><span class="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded-md">${ex.sets} เซ็ต | ${ex.targetReps} | ${ex.targetWeight} kg</span></div><div class="flex gap-2"><label class="flex-1 flex items-center justify-center gap-1 cursor-pointer font-bold text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg py-2"><input type="radio" name="status_${sessionIndex}_${exIndex}" value="played" ${isPlayed ? 'checked' : ''} class="w-4 h-4 accent-emerald-600"> เล่นครบ</label><label class="flex-1 flex items-center justify-center gap-1 cursor-pointer font-bold text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg py-2"><input type="radio" name="status_${sessionIndex}_${exIndex}" value="skipped" ${!isPlayed ? 'checked' : ''} class="w-4 h-4 accent-rose-500"> ข้ามท่านี้</label></div></li>`; 
+                } 
+            }).join(''); 
+            
+            let signatureSection = ''; 
+            if (session.signature) { 
+                signatureSection = `<div class="mt-4"><p class="text-xs font-black text-emerald-600 flex items-center gap-1 mb-2"><i class="fa-solid fa-shield-check text-lg"></i> ล็อกผลลายเซ็นรับรองแล้ว</p><img src="${session.signature}" class="border-2 border-slate-100 bg-white rounded-2xl w-full max-h-32 object-contain p-2 shadow-sm" alt="Signature"></div>`; 
+            } else { 
+                signatureSection = `<div class="mt-5"><p class="text-xs font-bold text-rose-500 mb-2 uppercase tracking-wide flex items-center gap-1"><i class="fa-solid fa-pen-nib"></i> ให้ลูกเทรนเซ็นชื่อลายมือยืนยันเข้าคลาส</p><div class="bg-white p-2 rounded-2xl border-2 border-dashed border-slate-300"><canvas id="canvas_${sessionIndex}" class="w-full h-32 cursor-crosshair touch-none"></canvas></div><div class="flex justify-between mt-4 items-center"><button onclick="clearHistorySignature(${sessionIndex})" class="text-xs font-bold text-slate-400 hover:text-slate-600 px-3 py-2 rounded-lg"><i class="fa-solid fa-eraser mr-1"></i> ลบเขียนใหม่</button><button onclick="saveHistoryDetails()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-md text-xs hover:bg-indigo-700 transition"><i class="fa-solid fa-lock mr-1"></i> ยืนยันผล & ล็อกประวัติ</button></div></div>`; 
+            } 
+            container.innerHTML = `<div class="bg-slate-50 rounded-3xl border border-slate-100 p-5"><div class="mb-4 flex items-center gap-2"><div class="w-10 h-10 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center"><i class="fa-solid fa-weight-scale"></i></div><div><p class="text-[10px] font-bold text-slate-400 uppercase">น้ำหนักตัวเซสชันนี้</p><p class="text-base font-black text-slate-800">${session.currentWeight || client.weight} กก.</p></div></div><ul class="space-y-3">${exercisesHtml || '<li class="text-slate-400 text-xs italic text-center py-4">ไม่มีข้อมูล</li>'}</ul>${signatureSection}</div>`; 
+            if (!session.signature) { setTimeout(() => { initUnsignedCanvas(sessionIndex); }, 100); } 
+        }
+
+        function initUnsignedCanvas(sessionIndex) { const canvas = document.getElementById('canvas_' + sessionIndex); if (!canvas) return; canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; const ctx = canvas.getContext('2d'); ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1e293b'; let isDrawing = false; const preventScroll = (e) => e.preventDefault(); const startPosition = (e) => { isDrawing = true; draw(e); }; const endPosition = () => { isDrawing = false; ctx.beginPath(); }; const draw = (e) => { if (!isDrawing) return; canvas.dataset.hasSignature = "true"; let clientX = e.clientX || e.touches[0].clientX; let clientY = e.clientY || e.touches[0].clientY; const rect = canvas.getBoundingClientRect(); ctx.lineTo(clientX - rect.left, clientY - rect.top); ctx.stroke(); ctx.beginPath(); ctx.moveTo(clientX - rect.left, clientY - rect.top); }; canvas.onmousedown = startPosition; canvas.onmouseup = endPosition; canvas.onmousemove = draw; canvas.ontouchstart = (e) => { preventScroll(e); startPosition(e); }; canvas.ontouchend = endPosition; canvas.ontouchmove = (e) => { preventScroll(e); draw(e); }; }
+        function clearHistorySignature(sessionIndex) { const canvas = document.getElementById('canvas_' + sessionIndex); if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); canvas.dataset.hasSignature = "false"; } }
+        async function saveHistoryDetails() { 
+            const sessionIndex = currentHistorySessionIndex; const canvas = document.getElementById('canvas_' + sessionIndex); if (!canvas || canvas.dataset.hasSignature !== "true") return Swal.fire({title:'ยังไม่ได้เซ็นชื่อ', text:'กรุณาเซ็นชื่อลายมือเพื่อล็อกประวัติคลาสสอนครับ!', icon:'error', customClass: { popup: 'rounded-3xl' }}); const client = clients[currentActiveClientIndex]; const session = client.workoutHistory[sessionIndex]; session.workout.forEach((ex, exIndex) => { const radios = document.getElementsByName(`status_${sessionIndex}_${exIndex}`); for (let r of radios) { if (r.checked) { ex.status = r.value; break; } } }); session.signature = canvas.toDataURL("image/png"); 
+            const success = await saveClientsToCloud();
+            if(success) {
+                Swal.fire({ title: 'สำเร็จ!', icon: 'success', timer: 1500, showConfirmButton: false, customClass: { popup: 'rounded-3xl' } }); renderHistoryDetail(sessionIndex); 
+            }
+        }
+
+        function openChartsSection() {
+            const client = clients[currentActiveClientIndex]; 
+            if(document.getElementById('chartClientName')) document.getElementById('chartClientName').innerText = client.name; 
+            if(document.getElementById('chartClientGoal')) document.getElementById('chartClientGoal').innerText = client.goal;
+            
+            const total = parseInt(client.totalSessions) || 0; 
+            const used = parseInt(client.usedSessions) || 0; 
+            let coursePercentage = total > 0 ? Math.round((used / total) * 100) : 0;
+            if(document.getElementById('summaryTotalSessions')) document.getElementById('summaryTotalSessions').innerText = `${used} / ${total}`; 
+            if(document.getElementById('summaryCourseText')) document.getElementById('summaryCourseText').innerText = `${coursePercentage}%`;
+            if(document.getElementById('summaryCourseBar')) document.getElementById('summaryCourseBar').style.width = `${coursePercentage}%`;
+            
+            const goalNumbers = client.goalTarget ? [parseFloat(client.goalTarget)] : (client.goal && client.goal.match(/\d+/) ? [parseFloat(client.goal.match(/\d+/)[0])] : null);
+            const targetWeightNumber = goalNumbers ? goalNumbers[0] : null;
+
+            let datesLabels = ['เริ่มคอร์ส']; let weightData = [parseFloat(client.weight) || 0]; let targetWeightData = targetWeightNumber ? [targetWeightNumber] : []; let strengthData = [0]; 
+            let categoryCounts = { 'อก': 0, 'หลัง': 0, 'ขา': 0, 'ไหล่': 0, 'แขน': 0, 'ท้อง': 0, 'คาร์ดิโอ': 0, 'อื่นๆ': 0 }; let exerciseCounts = {}; let totalExercisesCount = 0; let playedExercisesCount = 0; let maxStrengthValue = 0; let maxStrengthIndex = 0;
+            
+            if (client.workoutHistory) {
+                client.workoutHistory.forEach((session, sIdx) => {
+                    datesLabels.push(`ครั้งที่ ${sIdx + 1}`); weightData.push(session.currentWeight || parseFloat(client.weight) || 0); if (targetWeightNumber) targetWeightData.push(targetWeightNumber);
+                    let sessionMaxWeight = 0;
+                    session.workout.forEach(ex => {
+                        totalExercisesCount++;
+                        if (ex.status !== 'skipped') { 
+                            playedExercisesCount++; let rawCat = ex.category || findCategoryByExerciseName(ex.name); let cat = normalizeCategory(rawCat);
+                            let setsCount = parseInt(ex.sets); if(isNaN(setsCount)) setsCount = 1;
+                            categoryCounts[cat] = (categoryCounts[cat] || 0) + setsCount; exerciseCounts[ex.name] = (exerciseCounts[ex.name] || 0) + setsCount;
+                            const exW = parseFloat(ex.targetWeight); if (!isNaN(exW) && exW > sessionMaxWeight) { sessionMaxWeight = exW; }
+                        }
+                    });
+                    strengthData.push(sessionMaxWeight); if (sessionMaxWeight > maxStrengthValue) { maxStrengthValue = sessionMaxWeight; maxStrengthIndex = sIdx + 1; }
+                });
+            }
+
+            // Bind Nutrition Summary Data Injected Fields
+            const nut = calculateNutritionValues(client);
+            if(nut) {
+                if(document.getElementById('nutriKcal')) document.getElementById('nutriKcal').innerText = nut.kcal;
+                if(document.getElementById('nutriProtein')) document.getElementById('nutriProtein').innerText = nut.protein;
+                if(document.getElementById('nutriCarbs')) document.getElementById('nutriCarbs').innerText = nut.carbs;
+                if(document.getElementById('nutriFat')) document.getElementById('nutriFat').innerText = nut.fat;
+            } else {
+                ['nutriKcal','nutriProtein','nutriCarbs','nutriFat'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).innerText = '-'; });
+            }
+
+            // AI Insights Box Engine Refinement & Action Setup
+            const aiBox = document.getElementById('aiPredictionText');
+            const aiBtn = document.getElementById('aiActionBtn');
+            const currentLatestWeight = weightData[weightData.length - 1]; 
+            const weightDiff = (currentLatestWeight - weightData[0]).toFixed(1);
+            
+            if(aiBox && aiBtn) {
+                if(!client.height || !client.age) {
+                    aiBox.innerHTML = `⚠️ <b class="text-purple-900">แอปขาดข้อมูลสรีระ:</b> เพิ่มส่วนสูง อายุ เพื่อให้ระบบเปิดใช้งาน Dynamic AI Coach Insights ได้เต็มระบบครบรอบด้านครับ`;
+                    aiBtn.classList.remove('hidden');
+                } else {
+                    aiBtn.classList.add('hidden');
+                    if (client.workoutHistory && client.workoutHistory.length >= 3 && Math.abs(weightDiff) <= 0.3) {
+                        aiBox.innerHTML = `🚨 <b class="text-purple-900">พบภาวะน้ำหนักนิ่ง (Weight Plateau):</b> น้ำหนักคงเดิมมาหลายคลาสแล้ว! แนะนำให้โค้ชเพิ่มระดับความเข้มข้น (Intensity) ในคลาสถัดไป และคุมอาหารประเภทคาร์โบไฮเดรตให้เน้นโปรตีนเพิ่มขึ้นเพื่อทลายจุดล็อกสรีระตัวเลขครับ`;
+                    } else if (client.workoutHistory && client.workoutHistory.length >= 2 && targetWeightNumber) {
+                        const startW = parseFloat(client.weight); const lastW = currentLatestWeight; const totalLost = startW - lastW;
+                        if (client.goalType === 'เพิ่มน้ำหนัก' && totalLost < 0 && lastW < targetWeightNumber) {
+                            const gainPerSession = Math.abs(totalLost) / client.workoutHistory.length; const sessionsLeft = Math.ceil((targetWeightNumber - lastW) / gainPerSession);
+                            aiBox.innerHTML = `🔮 <b class="text-purple-900">AI วิเคราะห์ฟอร์ม:</b> พัฒนาการน้ำหนักกำลังไปได้ดีในทิศทางสร้างมวลกล้ามเนื้อ คาดว่าจะบรรลุเป้าหมายที่ตั้งไว้ภายในอีกประมาณ <b>${sessionsLeft}</b> คลาสเรียนซ้อมครับ!`;
+                        } else if (totalLost > 0 && lastW > targetWeightNumber) {
+                            const lossPerSession = totalLost / client.workoutHistory.length; const sessionsLeft = Math.ceil((lastW - targetWeightNumber) / lossPerSession);
+                            aiBox.innerHTML = `🔮 <b class="text-purple-900">AI วิเคราะห์ฟอร์ม:</b> อัตราเผาผลาญลดไขมันทำงานได้ยอดเยี่ยม คาดว่าจะลดสัดส่วนตัวเลขสรีระถึงเป้าหมายได้ในอีก <b>${sessionsLeft}</b> คลาสเรียนซ้อมครับ!`;
+                        } else {
+                            aiBox.innerHTML = `✨ <b class="text-purple-900">AI บันทึกสถิติ:</b> รักษาวินัยคลาสเรียนซ้อมและการกินให้สม่ำเสมอ กราฟแนวโน้มกำลังปรับตัวฐานพลังงานในเกณฑ์ปกติครับ`;
+                        }
+                    } else {
+                        aiBox.innerHTML = `🔮 <b class="text-purple-900">AI Coach Insights:</b> ระบบกำลังวิเคราะห์รวบรวมข้อมูลสถิติมวลน้ำหนักตัวเพิ่ม คลาสถัดไปให้ชั่งน้ำหนักเพื่อพล็อตเส้นกราฟแนวโน้มความก้าวหน้าครับ`;
+                    }
+                }
+            }
+
+            let completionRate = totalExercisesCount > 0 ? Math.round((playedExercisesCount / totalExercisesCount) * 100) : 0;
+            const completionEl = document.getElementById('summaryCompletionRate'); 
+            if(completionEl) {
+                completionEl.innerText = `${completionRate}%`;
+                completionEl.className = completionRate < 50 ? "text-3xl font-black text-rose-500" : (completionRate < 80 ? "text-3xl font-black text-amber-500" : "text-3xl font-black text-emerald-600");
+            }
+            
+            const diffEl = document.getElementById('weightDiffHighlight'); 
+            if(diffEl) {
+                if(weightDiff < 0) { diffEl.innerText = `${weightDiff} กก. 📉`; diffEl.className = "font-black text-xl leading-none text-emerald-500"; } 
+                else if (weightDiff > 0) { diffEl.innerText = `+${weightDiff} กก. 📈`; diffEl.className = "font-black text-xl leading-none text-rose-500"; } 
+                else { diffEl.innerText = `คงเดิม 🙌`; diffEl.className = "font-black text-xl leading-none text-slate-500"; }
+            }
+            
+            if(document.getElementById('chartClientWeightStats')) document.getElementById('chartClientWeightStats').innerText = `เริ่ม: ${client.weight} กก. -> ล่าสุด: ${currentLatestWeight} กก.`;
+            if(document.getElementById('chartClientAge')) document.getElementById('chartClientAge').innerText = client.age || '-';
+            if(document.getElementById('chartClientHeight')) document.getElementById('chartClientHeight').innerText = client.height || '-';
+            if(document.getElementById('chartClientCurrentWeight')) document.getElementById('chartClientCurrentWeight').innerText = currentLatestWeight;
+
+            // Setup fonts default parameters
+            Chart.defaults.font.family = "'Kanit', sans-serif";
+            Chart.defaults.color = '#64748b';
+
+            if (myCategoryChart) myCategoryChart.destroy(); if (myWeightTrendChart) myWeightTrendChart.destroy(); if (myStrengthTrendChart) myStrengthTrendChart.destroy(); if (myTopExercisesChart) myTopExercisesChart.destroy(); if (mySpecificExercisesChart) mySpecificExercisesChart.destroy();
+            
+            // Populating Data inside Doughnut Chart (Fat vs Muscle / Muscle mass ratio mockups)
+            let fatRatio = 25; let muscleRatio = 40; let waterRatio = 35;
+            if(client.goalType === 'ลดน้ำหนัก' && weightDiff < 0) { fatRatio = 22; muscleRatio = 42; }
+            if(document.getElementById('categoryChart')) {
+                myCategoryChart = new Chart(document.getElementById('categoryChart').getContext('2d'), { type: 'doughnut', data: { labels: [`🍗 มวลกล้ามเนื้อ (${muscleRatio}%)`, `💧 น้ำในร่างกาย (${waterRatio}%)`, `🥑 ไขมันสะสม (${fatRatio}%)`], datasets: [{ data: [muscleRatio, waterRatio, fatRatio], backgroundColor: ['#10b981', '#3b82f6', '#f59e0b'], borderWidth: 0, cutout: '65%' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+            }
+            
+            let weightMin = Math.min(...weightData) - 2; let weightMax = Math.max(...weightData) + 2; if(targetWeightNumber) { weightMin = Math.min(weightMin, targetWeightNumber - 2); weightMax = Math.max(weightMax, targetWeightNumber + 2); }
+            if(document.getElementById('weightTrendChart')) {
+                myWeightTrendChart = new Chart(document.getElementById('weightTrendChart').getContext('2d'), { type: 'line', data: { labels: datesLabels, datasets: [{ label: 'น้ำหนัก (กก.)', data: weightData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.08)', fill: true, tension: 0.4, borderWidth: 3, pointBackgroundColor: '#fff', pointBorderColor: '#3b82f6', pointRadius: 3 }, ...(targetWeightNumber ? [{ label: 'เป้าหมาย', data: targetWeightData, borderColor: '#f43f5e', borderDash: [5, 5], borderWidth: 1.5, fill: false, pointRadius: 0 }] : [])] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: Math.floor(weightMin), max: Math.ceil(weightMax), grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 } } }, x: { grid: { display: false }, ticks: { font: { size: 8 } } } }, plugins: { legend: { display: false } } } });
+            }
+            
+            let strengthMin = Math.min(...strengthData); let strengthMax = Math.max(...strengthData) + 5;
+            if(document.getElementById('strengthTrendChart')) {
+                myStrengthTrendChart = new Chart(document.getElementById('strengthTrendChart').getContext('2d'), { type: 'line', data: { labels: datesLabels, datasets: [{ label: 'แรงยก (kg)', data: strengthData, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.08)', fill: true, tension: 0.3, borderWidth: 3, pointBackgroundColor: '#fff', pointBorderColor: '#f59e0b', pointRadius: 3 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: Math.floor(strengthMin === 0 ? 0 : strengthMin - 2), max: Math.ceil(strengthMax), grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 } } }, x: { grid: { display: false }, ticks: { font: { size: 8 } } } }, plugins: { legend: { display: false } } } });
+            }
+            
+            // Side-by-Side Fixed bar chart metrics configs renderers 
+            if(document.getElementById('topExercisesChart')) {
+                myTopExercisesChart = new Chart(document.getElementById('topExercisesChart').getContext('2d'), { type: 'bar', data: { labels: ['อก', 'หลัง', 'ขา', 'ไหล่', 'แขน', 'ท้อง', 'คาร์ดิโอ', 'อื่นๆ'], datasets: [{ data: [categoryCounts['อก']||0, categoryCounts['หลัง']||0, categoryCounts['ขา']||0, categoryCounts['ไหล่']||0, categoryCounts['แขน']||0, categoryCounts['ท้อง']||0, categoryCounts['คาร์ดิโอ']||0, categoryCounts['อื่นๆ']||0], backgroundColor: ['#f43f5e', '#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#f97316', '#14b8a6', '#94a3b8'], borderRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 }, stepSize: 2 } }, x: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' } } } }, plugins: { legend: { display: false } } } });
+            }
+            
+            const sortedExercises = Object.entries(exerciseCounts).sort((a, b) => b[1] - a[1]).slice(0, 5); const exLabels = sortedExercises.map(item => item[0].length > 10 ? item[0].substring(0,10)+'..' : item[0]); const exData = sortedExercises.map(item => item[1]);
+            if(document.getElementById('specificExercisesChart')) {
+                mySpecificExercisesChart = new Chart(document.getElementById('specificExercisesChart').getContext('2d'), { type: 'bar', data: { labels: exLabels.length > 0 ? exLabels : ['ไม่มีข้อมูล'], datasets: [{ data: exData.length > 0 ? exData : [0], backgroundColor: '#818cf8', borderRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 }, stepSize: 2 } }, y: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' } } } }, plugins: { legend: { display: false } } } });
+            }
+        }
+
+        function captureSummaryReport() { const area = document.getElementById('captureArea'); html2canvas(area, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => { const imageLink = canvas.toDataURL("image/png"); const createDownload = document.createElement('a'); createDownload.href = imageLink; const clientName = document.getElementById('chartClientName').innerText; createDownload.download = `Progress_Report_${clientName}.png`; document.body.appendChild(createDownload); createDownload.click(); document.body.removeChild(createDownload); Swal.fire({ title: 'สำเร็จ!', text: '📸 ระบบบันทึกภาพรายงานพัฒนาการลงสู่อุปกรณ์แล้ว!', icon: 'success', timer: 1500, showConfirmButton: false, customClass: { popup: 'rounded-3xl' } }); }); }
+
+        // เริ่มรันระบบดึงข้อมูลแรกรับเมื่อโหลดหน้าเสร็จ
+        fetchClientsFromCloud();
+    </script>
+</body>
+</html>
