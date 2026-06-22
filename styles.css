@@ -1,0 +1,171 @@
+/* =========================================================
+   TRAINER PRO — Design System v2
+   โทนใหม่: "Pulse" — violet/iris เป็นสีหลัก + coral เป็นสี action
+   ========================================================= */
+
+:root {
+  --brand-50:  #f1f0ff;
+  --brand-100: #e4e1ff;
+  --brand-400: #8b7bff;
+  --brand-500: #6957ff;
+  --brand-600: #5538f2;
+  --brand-700: #4427d6;
+  --coral-400: #ff8a65;
+  --coral-500: #ff6f47;
+  --coral-600: #f0552e;
+
+  --bg: #f6f5fb;
+  --surface: #ffffff;
+  --surface-muted: #f1eff9;
+  --text-strong: #1c1934;
+  --text-body: #4b4669;
+  --text-mute: #8b86ab;
+  --border-soft: #ece9f7;
+  --shadow-card: 0 10px 30px -12px rgba(76, 58, 168, 0.18);
+  --radius-card: 1.75rem;
+}
+
+[data-theme="dark"] {
+  --bg: #0f0d1f;
+  --surface: #181530;
+  --surface-muted: #1f1b3d;
+  --text-strong: #f3f1ff;
+  --text-body: #c6c1e6;
+  --text-mute: #8a84b8;
+  --border-soft: #2a2552;
+  --shadow-card: 0 10px 30px -12px rgba(0, 0, 0, 0.5);
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Kanit', sans-serif;
+  background-color: var(--bg);
+  color: var(--text-strong);
+  transition: background-color .35s ease, color .35s ease;
+}
+
+div:where(.swal2-container) { font-family: 'Kanit', sans-serif; }
+.touch-action-manipulation { touch-action: manipulation; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--brand-400); border-radius: 10px; }
+
+/* ---------- Retrofit: ให้ Tailwind utility เดิมเปลี่ยนสีตาม theme ----------
+   เทคนิค: ovveride ตัวแปรสีของคลาส neutral ที่ใช้ซ้ำทั่วแอป
+   ทำให้ไม่ต้องไล่แก้ class ใน HTML นับร้อยจุด */
+[data-theme="dark"] .bg-white { background-color: var(--surface) !important; }
+[data-theme="dark"] .bg-slate-50,
+[data-theme="dark"] .bg-slate-100 { background-color: var(--surface-muted) !important; }
+[data-theme="dark"] .border-slate-100,
+[data-theme="dark"] .border-slate-200 { border-color: var(--border-soft) !important; }
+[data-theme="dark"] .text-slate-800,
+[data-theme="dark"] .text-slate-700 { color: var(--text-strong) !important; }
+[data-theme="dark"] .text-slate-600,
+[data-theme="dark"] .text-slate-500 { color: var(--text-body) !important; }
+[data-theme="dark"] .text-slate-400 { color: var(--text-mute) !important; }
+[data-theme="dark"] #app-header,
+[data-theme="dark"] .bg-white\/80 { background-color: rgba(24, 21, 48, 0.85) !important; }
+[data-theme="dark"] #loadingOverlay { background: rgba(15, 13, 31, 0.85) !important; }
+
+/* ---------- Card / interaction polish ---------- */
+.ui-card {
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease;
+  box-shadow: var(--shadow-card);
+}
+.ui-card:hover { transform: translateY(-4px); }
+.ui-card:active { transform: translateY(-1px) scale(.995); }
+
+#loadingOverlay {
+  position: fixed; inset: 0;
+  background: rgba(246, 245, 251, 0.85);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  display: flex; flex-direction: column;
+  justify-content: center; align-items: center;
+  transition: background-color .35s ease;
+}
+
+/* skeleton shimmer สำหรับ loading icon */
+.pulse-ring {
+  position: relative;
+  width: 72px; height: 72px;
+  border-radius: 9999px;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle, var(--brand-100), transparent 70%);
+}
+.pulse-ring::before, .pulse-ring::after {
+  content: ''; position: absolute; inset: 0;
+  border-radius: 9999px; border: 2px solid var(--brand-500);
+  animation: pulseRing 1.8s ease-out infinite;
+  opacity: 0;
+}
+.pulse-ring::after { animation-delay: .6s; }
+@keyframes pulseRing {
+  0% { transform: scale(.6); opacity: .7; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* page transition เบาๆ ตอนสลับ view */
+.view-enter { animation: viewFade .35s ease both; }
+@keyframes viewFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* theme toggle switch */
+.theme-toggle {
+  width: 2.5rem; height: 2.5rem; border-radius: 9999px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-muted); color: var(--brand-600);
+  border: 1px solid var(--border-soft);
+  transition: background-color .25s, color .25s, transform .2s;
+}
+.theme-toggle:active { transform: scale(.9); }
+
+/* sort chip */
+.sort-select {
+  background: var(--surface-muted);
+  color: var(--text-body);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.875rem;
+}
+
+/* progress ring บน card ลูกเทรน */
+.progress-ring__bg { stroke: var(--border-soft); }
+.progress-ring__bar {
+  stroke: var(--brand-500);
+  stroke-linecap: round;
+  transition: stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1);
+}
+
+/* mobile bottom quick-nav */
+#mobileQuickNav {
+  position: fixed; left: 50%; bottom: 1rem; transform: translateX(-50%);
+  z-index: 60; display: none;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 9999px;
+  padding: .4rem;
+  gap: .25rem;
+}
+@media (max-width: 767px) {
+  #mobileQuickNav { display: flex; }
+}
+#mobileQuickNav button {
+  width: 3rem; height: 3rem; border-radius: 9999px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-mute); transition: all .2s;
+}
+#mobileQuickNav button.active {
+  background: var(--brand-500); color: #fff;
+  box-shadow: 0 6px 16px -4px rgba(105, 87, 255, .55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
